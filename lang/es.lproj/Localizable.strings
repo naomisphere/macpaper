@@ -1,0 +1,23 @@
+"mgr_title" = "macpaper";
+"mgr_wp_title" = "wallpapers";
+"add_wallpaper" = "añadir fondo";
+"persist" = "persistir";
+"unset_current" = "quitar fondo actual";
+"refresh" = "actualizar";
+"loading_wallpapers" = "cargando fondos...";
+"scanning_video_files" = "buscando archivos de video";
+"no_wallpapers_found" = "no se encontraron fondos";
+"drop_files_or_add" = "suelta archivos aquí o haz clic en 'añadir fondo'";
+"supported_formats" = "formatos aceptados: .mp4, .mov, .gif";
+"set_wallpaper" = "establecer fondo";
+"gif_format" = "gif";
+"video_format" = "video";
+
+"sb_no_wallpapers" = "No hay fondos";
+"sb_wallpapers" = "Fondos de pantalla";
+"sb_large_count" = "%d más...";
+"sb_perst_enabled" = "Persistencia activada";
+"sb_enable_perst" = "Activar persistencia";
+"sb_unset_wp" = "Quitar fondo";
+"sb_open_mgr" = "Abrir app";
+"sb_quit" = "Salir de macpaper";

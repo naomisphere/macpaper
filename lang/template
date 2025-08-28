@@ -1,0 +1,23 @@
+"mgr_title" = "";
+"mgr_wp_title" = "";
+"add_wallpaper" = "";
+"persist" = "";
+"unset_current" = "";
+"refresh" = "";
+"loading_wallpapers" = "";
+"scanning_video_files" = "";
+"no_wallpapers_found" = "";
+"drop_files_or_add" = "";
+"supported_formats" = "";
+"set_wallpaper" = "";
+"gif_format" = "";
+"video_format" = "";
+
+"sb_no_wallpapers" = "";
+"sb_wallpapers" = "";
+"sb_large_count" = "%d";
+"sb_perst_enabled" = "";
+"sb_enable_perst" = "";
+"sb_unset_wp" = "";
+"sb_open_mgr" = "";
+"sb_quit" = "";

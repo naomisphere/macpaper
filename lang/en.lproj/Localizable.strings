@@ -1,0 +1,23 @@
+"mgr_title" = "macpaper";
+"mgr_wp_title" = "wallpapers";
+"add_wallpaper" = "add wallpaper";
+"persist" = "persist";
+"unset_current" = "unset current";
+"refresh" = "refresh";
+"loading_wallpapers" = "loading wallpapers...";
+"scanning_video_files" = "scanning for video files";
+"no_wallpapers_found" = "no wallpapers found";
+"drop_files_or_add" = "drop files here or click 'add wallpaper'";
+"supported_formats" = "supported formats: .mp4, .mov, .gif";
+"set_wallpaper" = "set wallpaper";
+"gif_format" = "gif";
+"video_format" = "video";
+
+"sb_no_wallpapers" = "No wallpapers found";
+"sb_wallpapers" = "Wallpapers";
+"sb_large_count" = "%d more...";
+"sb_perst_enabled" = "Persistence Enabled";
+"sb_enable_perst" = "Enable Persistence";
+"sb_unset_wp" = "Unset Wallpaper";
+"sb_open_mgr" = "Open Manager";
+"sb_quit" = "Quit macpaper";

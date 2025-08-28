@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "getopt.h": "c",
+        "libgen.h": "c",
+        "string.h": "c"
+    }
+}

@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <a href="http://macpaper.github.io"><img src="https://github.com/user-attachments/assets/762beeef-839a-46a0-8af5-e2dfa685aa74" alt="macpaper" width="150"></a>
+  <a href="http://macpaper.github.io"><img src="https://github.com/user-attachments/assets/41098f87-f856-4ce6-a931-62be8c6d5be9" alt="macpaper" width="150"></a>
   <br>
   macpaper
   <br>
@@ -24,7 +24,7 @@ macpaper is a simple tool that allows you to set your own moving wallpapers (.mp
 ✨ Preview
 </h1>
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/633c4a4e-f1d5-43ac-a405-291a58a7f0a3" alt="Demo GIF" />
+  <img src="https://github.com/user-attachments/assets/15118fad-306d-4804-b108-462e81fef237" alt="Demo GIF" />
 </p>
 
 ---
@@ -46,7 +46,7 @@ macpaper is a simple tool that allows you to set your own moving wallpapers (.mp
 > You only need to do this once.
 
 <p align="center">
-  <a href="https://github.com/naomisphere/macpaper/releases/latest/download/macpaper.dmg" target="_self"><img width="200" src="https://github.com/user-attachments/assets/69523920-84ef-4078-9274-6cd9e2209afa" alt="Download app for macOS" /></a>
+  <a href="https://github.com/naomisphere/macpaper/releases/latest/download/macpaper.dmg" target="_self"><img width="200" src="https://github.com/user-attachments/assets/e2b187d1-8010-45cf-a9d4-e7ce5e2e677c" /></a>
 </p>
 
 ---

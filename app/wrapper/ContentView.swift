@@ -6,6 +6,15 @@ struct ContentView: View {
     @State private var selectedTab: TabSelection? /*= .wallpapers */
     @State private var showAuthPrompt = false
     @State private var isAuthenticating = false
+    @State private var version_label_alpha: Double = 0.6
+    
+    private func app_version() -> String {
+        if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
+            return "v\(version) (\(build))"
+        }
+        return "unknown"
+    }
     
     enum TabSelection: CaseIterable {
         case wallpapers
@@ -30,14 +39,19 @@ struct ContentView: View {
             VStack(spacing: 0) {
             HStack(spacing: 20) {
             HStack(spacing: 12) {
-                
             Image(systemName: "sparkles")
                 .font(.system(size: 24, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.8))
             Text(NSLocalizedString("mgr_title", comment: "macpaper"))
                 .font(.system(size: 28, weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary.opacity(0.9))
-                    }
+            
+            Text(app_version())
+                .font(.system(size: 12, weight: .regular, design: .monospaced))
+                .foregroundStyle(.secondary.opacity(version_label_alpha))
+                .padding(.leading, 4)
+                .padding(.top, 4)
+                }
                     
             Spacer()
                     
@@ -64,6 +78,7 @@ struct ContentView: View {
         }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .focusable(false)
         }
     }
 }

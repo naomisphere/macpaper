@@ -9,15 +9,55 @@ class macpaperService: NSObject, ObservableObject {
     @Published var current_wp: String?
     @Published var volume: Double = 0.5
     @Published var wp_is_agent: Bool = false
+    @Published var ap_is_enabled: Bool = false
     
     private let wrapped_obj: String
     private let wp_storage_dir = FileManager.default.homeDirectoryForCurrentUser
     .appendingPathComponent(".local/share/paper/wallpaper")
+    private let settings_file = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent(".local/share/macpaper/settings.json")
     
     override init() {
         let app_path = Bundle.main.bundlePath
         wrapped_obj = "\(app_path)/Contents/MacOS/macpaper-bin"
         super.init()
+        loadSettings()
+    }
+
+    func _ap_enabled(_ enabled: Bool) {
+        ap_is_enabled = enabled
+        saveSettings()
+        
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("com.naomisphere.macpaper.autoPauseChanged"),
+            object: nil,
+            userInfo: ["ap_is_enabled": enabled],
+            deliverImmediately: true
+        )
+    }
+    
+    private func loadSettings() {
+        do {
+            if FileManager.default.fileExists(atPath: settings_file.path) {
+                let data = try Data(contentsOf: settings_file)
+                let settings = try JSONDecoder().decode([String: Bool].self, from: data)
+                ap_is_enabled = settings["ap_is_enabled"] ?? false
+            }
+        } catch {
+            print("while loading settings: \(error)")
+        }
+    }
+    
+    private func saveSettings() {
+        do {
+            let settings: [String: Bool] = ["ap_is_enabled": ap_is_enabled]
+            let data = try JSONEncoder().encode(settings)
+            try FileManager.default.createDirectory(at: settings_file.deletingLastPathComponent(), 
+                                                  withIntermediateDirectories: true)
+            try data.write(to: settings_file)
+        } catch {
+            print("while writing settings: \(error)")
+        }
     }
     
     func chvol(_ new_vol: Double) {

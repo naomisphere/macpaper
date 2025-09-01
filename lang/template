@@ -21,3 +21,8 @@
 "sb_unset_wp" = "";
 "sb_open_mgr" = "";
 "sb_quit" = "";
+
+"mgr_settings" = "";
+"settings" = "";
+"cfg_auto_pause" = "";
+"cfg_auto_pause_desc" = "";

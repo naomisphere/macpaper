@@ -21,3 +21,8 @@
 "sb_unset_wp" = "Unset Wallpaper";
 "sb_open_mgr" = "Open Manager";
 "sb_quit" = "Quit macpaper";
+
+"mgr_settings" = "settings";
+"settings" = "Settings";
+"cfg_auto_pause" = "Smart Playback (experimental)";
+"cfg_auto_pause_desc" = "Stop playing wallpaper when apps are fullscreen";

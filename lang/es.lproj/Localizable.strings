@@ -21,3 +21,8 @@
 "sb_unset_wp" = "Quitar fondo";
 "sb_open_mgr" = "Abrir app";
 "sb_quit" = "Salir de macpaper";
+
+"mgr_settings" = "ajustes";
+"settings" = "Ajustes";
+"cfg_auto_pause" = "Reproducción Inteligente (experimental)";
+"cfg_auto_pause_desc" = "No reproducir el fondo cuando una aplicación está en pantalla completa";

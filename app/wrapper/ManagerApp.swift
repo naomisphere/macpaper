@@ -1,4 +1,4 @@
-// ManagerView.swift
+// ManagerApp.swift
 
 import SwiftUI
 import AVKit
@@ -47,7 +47,16 @@ struct ManagerView: View {
                     show_importer = true
                 }
             )
-            
+
+            SimpleButton(
+                title: NSLocalizedString("mgr_settings", comment: "settings"),
+                icon: "gearshape",
+                isPrimary: false,
+                action: {
+                    show_settings()
+                }
+            )
+        
             Spacer()
             
             if service.current_wp != nil {
@@ -106,6 +115,25 @@ struct ManagerView: View {
         .padding(.horizontal, 24)
         .padding(.top, 16)
     }
+
+    private func show_settings() {
+    let settingsView = SettingsView()
+        .environmentObject(service)
+    
+    let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
+        styleMask: [.titled, .closable],
+        backing: .buffered,
+        defer: false
+    )
+    
+    window.center()
+    window.title = "Settings"
+    window.contentView = NSHostingView(rootView: settingsView)
+    window.isReleasedWhenClosed = false
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+}
     
     private var contentView: some View {
         ZStack {

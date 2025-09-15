@@ -32,7 +32,7 @@ macpaper is a simple tool that allows you to set your own moving wallpapers (.mp
 ## Installation
 
 **System Requirements:**  
-- macOS **12** *(Monterey)* or later (hasn't been tested on 26 -Tahoe-)
+- macOS **12** *(Monterey)* or later
 - Silicon/Intel Mac
 
 ---

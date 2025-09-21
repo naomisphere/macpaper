@@ -1,11 +1,12 @@
 "mgr_title" = "macpaper";
 "mgr_wp_title" = "wallpapers";
+"mgr_browse_title" = "browse";
 "add_wallpaper" = "add wallpaper";
 "persist" = "persist";
 "unset_current" = "unset current";
 "refresh" = "refresh";
 "loading_wallpapers" = "loading wallpapers...";
-"scanning_video_files" = "scanning for video files";
+"scanning_files" = "scanning for video files";
 "no_wallpapers_found" = "no wallpapers found";
 "drop_files_or_add" = "drop files here or click 'add wallpaper'";
 "supported_formats" = "supported formats: .mp4, .mov, .gif";
@@ -13,16 +14,63 @@
 "gif_format" = "gif";
 "video_format" = "video";
 
+"filter" = "filter";
+"show_types" = "Show";
+"show_videos" = "Videos";
+"show_images" = "Images";
+
 "sb_no_wallpapers" = "No wallpapers found";
 "sb_wallpapers" = "Wallpapers";
 "sb_large_count" = "%d more...";
 "sb_perst_enabled" = "Persistence Enabled";
 "sb_enable_perst" = "Enable Persistence";
-"sb_unset_wp" = "Unset Wallpaper";
+"sb_unset_wp" = "Unset Live Wallpaper";
 "sb_open_mgr" = "Open Manager";
 "sb_quit" = "Quit macpaper";
 
 "mgr_settings" = "settings";
 "settings" = "Settings";
-"cfg_auto_pause" = "Smart Playback (experimental)";
+"cfg_auto_pause" = "Smart Playback";
 "cfg_auto_pause_desc" = "Stop playing wallpaper when apps are fullscreen";
+
+"browse_save" = "Save";
+"browse_cancel" = "Cancel";
+"browse_search_placeholder" = "Search wallpapers...";
+"browse_filters" = "Filters";
+"browse_category" = "Category";
+"browse_purity" = "Purity";
+"browse_sort" = "Sort by";
+"browse_desc" = "Descending";
+"browse_asc" = "Ascending";
+"browse_apply" = "Apply Filters";
+"browse_loading" = "Loading wallpapers...";
+"browse_no_results" = "No wallpapers found";
+"browse_try_search" = "Try adjusting your search or filters";
+"browse_provider" = "Sources";
+"browse_wallhaven" = "Wallhaven";
+"browse_local" = "Local Library";
+
+"sort_date" = "Date Added";
+"sort_relevance" = "Relevance";
+"sort_random" = "Random";
+"sort_views" = "Views";
+"sort_favorites" = "Favorites";
+"sort_top" = "Toplist";
+
+"purity_all" = "All";
+
+"category_general" = "General";
+"category_anime" = "Anime";
+"category_people" = "People";
+"category_all" = "All";
+
+"settings_api_key" = "Wallhaven API Key";
+"settings_api_key_description" = "Experimental. Clear if it breaks.";
+"settings_enter_api_key" = "Enter API Key";
+"settings_save" = "Save";
+"settings_cancel" = "Cancel";
+"settings_no_api_key" = "No API key set";
+"settings_api_key_set" = "API key is set";
+"settings_add_api_key" = "Add API Key";
+"settings_change_api_key" = "Change";
+"settings_invalid_api_key" = "Invalid API key";

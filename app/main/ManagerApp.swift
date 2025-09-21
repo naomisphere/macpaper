@@ -4,10 +4,29 @@ import SwiftUI
 import AVKit
 import UniformTypeIdentifiers
 
+class MenuHandler: NSObject {
+    weak var service: macpaperService?
+    
+    @objc func toggleVideos() {
+        guard let service = service else { return }
+        service.showVideos.toggle()
+        service.fetch_wallpapers()
+        print("toggle videos: \(service.showVideos)")
+    }
+    
+    @objc func toggleImages() {
+        guard let service = service else { return }
+        service.showImages.toggle()
+        service.fetch_wallpapers()
+        print("toggle images: \(service.showImages)")
+    }
+}
+
 struct ManagerView: View {
     @StateObject private var service = macpaperService()
     @State private var show_importer = false
     @State private var file_drag = false
+    private let menuHandler = MenuHandler()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -16,13 +35,21 @@ struct ManagerView: View {
         }
         .onAppear {
             service.fetch_wallpapers()
+            menuHandler.service = service
         }
         .fileImporter(
             isPresented: $show_importer,
             allowedContentTypes: [
+                UTType.movie,
+                UTType.gif,
+                UTType.jpeg,
+                UTType.png,
                 UTType(filenameExtension: "mp4")!,
                 UTType(filenameExtension: "mov")!,
-                UTType(filenameExtension: "gif")!
+                UTType(filenameExtension: "gif")!,
+                UTType(filenameExtension: "jpg")!,
+                UTType(filenameExtension: "jpeg")!,
+                UTType(filenameExtension: "png")!
             ],
             allowsMultipleSelection: true
         ) { result in
@@ -59,7 +86,7 @@ struct ManagerView: View {
         
             Spacer()
             
-            if service.current_wp != nil {
+            if service.current_wp != nil && !isStillWallpaper(service.current_wp!) {
                 Button(action: {
                     service.wp_doPersist(!service.wp_is_agent)
                 }) {
@@ -92,6 +119,15 @@ struct ManagerView: View {
                     }
                 )
             }
+
+            SimpleButton(
+                title: NSLocalizedString("filter", comment: "Filter"),
+                icon: "line.3.horizontal.decrease.circle",
+                isPrimary: false,
+                action: {
+                    showFilterMenu()
+                }
+            )
             
             SimpleButton(
                 title: NSLocalizedString("refresh", comment: "refresh wallpapers"),
@@ -117,22 +153,77 @@ struct ManagerView: View {
     }
 
     private func show_settings() {
-    let settingsView = SettingsView()
-        .environmentObject(service)
+        let settingsView = SettingsView()
+            .environmentObject(service)
+        
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        window.center()
+        window.title = "Settings"
+        window.contentView = NSHostingView(rootView: settingsView)
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func showFilterMenu() {
+    let menu = NSMenu()
     
-    let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
-        styleMask: [.titled, .closable],
-        backing: .buffered,
-        defer: false
+    let filterHeader = NSMenuItem(
+        title: NSLocalizedString("show_types", comment: "Show"),
+        action: nil,
+        keyEquivalent: ""
     )
+    filterHeader.isEnabled = false
+    menu.addItem(filterHeader)
     
-    window.center()
-    window.title = "Settings"
-    window.contentView = NSHostingView(rootView: settingsView)
-    window.isReleasedWhenClosed = false
-    window.makeKeyAndOrderFront(nil)
-    NSApp.activate(ignoringOtherApps: true)
+    let videoItem = NSMenuItem(
+        title: NSLocalizedString("show_videos", comment: "Videos"),
+        action: #selector(MenuHandler.toggleVideos),
+        keyEquivalent: ""
+    )
+    videoItem.target = menuHandler
+    videoItem.state = service.showVideos ? .on : .off
+    menu.addItem(videoItem)
+    
+    let imageItem = NSMenuItem(
+        title: NSLocalizedString("show_images", comment: "Images"),
+        action: #selector(MenuHandler.toggleImages),
+        keyEquivalent: ""
+    )
+    imageItem.target = menuHandler
+    imageItem.state = service.showImages ? .on : .off
+    menu.addItem(imageItem)
+    
+    if let window = NSApp.keyWindow,
+       let contentView = window.contentView {
+        
+        let filterButtonTitle = NSLocalizedString("filter", comment: "Filter")
+        if let filterButton = findButton(with: filterButtonTitle, in: contentView) {
+            let buttonFrame = filterButton.convert(filterButton.bounds, to: nil)
+            let menuPosition = NSPoint(x: buttonFrame.minX, y: buttonFrame.maxY)
+            menu.popUp(positioning: nil, at: menuPosition, in: nil)
+        } else {
+            menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        }
+    }
+}
+
+private func findButton(with title: String, in view: NSView) -> NSButton? {
+    for subview in view.subviews {
+        if let button = subview as? NSButton, button.title == title {
+            return button
+        }
+        if let foundButton = findButton(with: title, in: subview) {
+            return foundButton
+        }
+    }
+    return nil
 }
     
     private var contentView: some View {
@@ -182,7 +273,7 @@ struct ManagerView: View {
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary.opacity(0.8))
                 
-                Text(NSLocalizedString("scanning_video_files", comment: "scanning for video files"))
+                Text(NSLocalizedString("scanning_files", comment: "scanning for video files"))
                     .font(.system(size: 13, weight: .regular, design: .rounded))
                     .foregroundStyle(.secondary)
             }
@@ -229,21 +320,24 @@ struct ManagerView: View {
             
             LazyVGrid(columns: columns, alignment: .center, spacing: 30) {
                 ForEach(Array(service.wallpapers.enumerated()), id: \.element.id) { index, wallpaper in
-                WallpaperCard(
-                    wallpaper: wallpaper,
-                    isActive: service.current_wp == wallpaper.path,
-                    onSelect: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            service.set_wp(wallpaper)
+                    WallpaperCard(
+                        wallpaper: wallpaper,
+                        isActive: service.current_wp == wallpaper.path,
+                        onSelect: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                service.set_wp(wallpaper)
+                            }
+                        },
+                        onDelete: {
+                            withAnimation(.easeInOut(duration: 0.4)) {
+                                delete_wp(wallpaper)
+                            }
+                        },
+                        onRename: { newName in
+                            rename_wp(wallpaper, to: newName)
                         }
-                    },
-                    onDelete: {
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            deleteWallpaper(wallpaper)
-                        }
-                    }
-                )
-                .environmentObject(service)
+                    )
+                    .environmentObject(service)
                     .frame(width: 300, height: 260)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .scale(scale: 0.8).combined(with: .offset(y: 20))),
@@ -274,12 +368,12 @@ struct ManagerView: View {
     
     private func import_wp(from url: URL) {
         let ext = url.pathExtension.lowercased()
-        guard ["mp4", "mov", "gif"].contains(ext) else {
+        guard ["mp4", "mov", "gif", "jpg", "jpeg", "png"].contains(ext) else {
             return
         }
         
         let wp_storage_dir = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".local/share/paper/wallpaper")
+            .appendingPathComponent(".local/share/paper/wallpaper")
         
         do {
             try FileManager.default.createDirectory(at: wp_storage_dir, withIntermediateDirectories: true)
@@ -298,7 +392,7 @@ struct ManagerView: View {
         }
     }
     
-    private func deleteWallpaper(_ wallpaper: endup_wp) {
+    private func delete_wp(_ wallpaper: endup_wp) {
         do {
             try FileManager.default.removeItem(atPath: wallpaper.path)
             service.fetch_wallpapers()
@@ -306,11 +400,40 @@ struct ManagerView: View {
             print(error)
         }
     }
+    
+    private func rename_wp(_ wallpaper: endup_wp, to newName: String) {
+        let fileURL = URL(fileURLWithPath: wallpaper.path)
+        let directory = fileURL.deletingLastPathComponent()
+        let fileExtension = fileURL.pathExtension
+        let newFileName = "\(newName).\(fileExtension)"
+        let newURL = directory.appendingPathComponent(newFileName)
+        
+        do {
+            try FileManager.default.moveItem(at: fileURL, to: newURL)
+            service.fetch_wallpapers()
+        } catch {
+            print("Error renaming file: \(error)")
+        }
+    }
+    
+    private func isStillWallpaper(_ path: String) -> Bool {
+        let ext = (path as NSString).pathExtension.lowercased()
+        return ["jpg", "jpeg", "png"].contains(ext)
+    }
 }
 
-struct VideoPreviewView: View {
+struct videoPreview: View {
     let videoURL: URL
     @State private var thumbnail: NSImage?
+    
+    private static var thumbnailCache = NSCache<NSString, NSImage>()
+    private static var loadingOperations = [String: Operation]()
+    private static let operationQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 3
+        queue.qualityOfService = .utility
+        return queue
+    }()
     
     var body: some View {
         ZStack {
@@ -318,9 +441,10 @@ struct VideoPreviewView: View {
                 Image(nsImage: thumbnail)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Rectangle()
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.brown.opacity(0.3))
                     .overlay {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.7)))
@@ -329,29 +453,66 @@ struct VideoPreviewView: View {
             }
         }
         .onAppear {
-            generate_thumbnail()
+            loadThumbnail()
+        }
+        .onDisappear {
+            cancelLoading()
         }
     }
-    
-    private func generate_thumbnail() {
-        DispatchQueue.global(qos: .background).async {
-            let asset = AVAsset(url: videoURL)
+
+    private func loadThumbnail() {
+        let cacheKey = videoURL.path as NSString
+        
+        if let cachedThumbnail = Self.thumbnailCache.object(forKey: cacheKey) {
+            self.thumbnail = cachedThumbnail
+            return
+        }
+        
+        cancelLoading()
+        
+        var operation: BlockOperation?
+        
+        operation = BlockOperation {
+            if operation?.isCancelled ?? true { return }
+            
+            let asset = AVAsset(url: self.videoURL)
             let imageGenerator = AVAssetImageGenerator(asset: asset)
             imageGenerator.appliesPreferredTrackTransform = true
             imageGenerator.maximumSize = CGSize(width: 300, height: 200)
+            imageGenerator.requestedTimeToleranceAfter = .zero
+            imageGenerator.requestedTimeToleranceBefore = .zero
             
             do {
                 let cgImage = try imageGenerator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 60), actualTime: nil)
                 let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
                 
+                if operation?.isCancelled ?? true { return }
+                
+                Self.thumbnailCache.setObject(nsImage, forKey: cacheKey)
+                
                 DispatchQueue.main.async {
-                    self.thumbnail = nsImage
+                    Self.loadingOperations.removeValue(forKey: self.videoURL.path)
+                    if let op = operation, !op.isCancelled {
+                        self.thumbnail = nsImage
+                    }
                 }
             } catch {
                 DispatchQueue.main.async {
-                    self.thumbnail = nil
+                    Self.loadingOperations.removeValue(forKey: self.videoURL.path)
                 }
             }
+        }
+        
+        if let op = operation {
+            Self.loadingOperations[videoURL.path] = op
+            Self.operationQueue.addOperation(op)
+        }
+    }
+
+    private func cancelLoading() {
+        if let operation = Self.loadingOperations[videoURL.path] {
+            operation.cancel()
+            Self.loadingOperations.removeValue(forKey: videoURL.path)
         }
     }
 }
@@ -502,9 +663,18 @@ struct WallpaperCard: View {
     let isActive: Bool
     let onSelect: () -> Void
     let onDelete: () -> Void
+    let onRename: (String) -> Void
     
     @State private var isHovered = false
+    @State private var isEditing = false
+    @State private var editedName = ""
+    @FocusState private var isNameFocused: Bool
     @EnvironmentObject private var service: macpaperService
+    
+    private var isStillWallpaper: Bool {
+        let ext = (wallpaper.path as NSString).pathExtension.lowercased()
+        return ["jpg", "jpeg", "png"].contains(ext)
+    }
     
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
@@ -523,26 +693,27 @@ struct WallpaperCard: View {
                         .stroke(.primary.opacity(0.1), lineWidth: 0.5)
                 }
         }
+        .onChange(of: isEditing) { editing in
+            if editing {
+                editedName = wallpaper.name
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isNameFocused = true
+                }
+            }
+        }
     }
     
     private var previewSection: some View {
         ZStack {
             Rectangle()
-                .fill(Color.gray.opacity(0.2))
+                .fill(Color.brown.opacity(0.2))
             
-            if wallpaper.path.hasSuffix(".gif") {
-                if let image = NSImage(contentsOfFile: wallpaper.path) {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .clipped()
-                } else {
-                    Image(systemName: "photo")
-                        .font(.system(size: 24, weight: .light))
-                        .foregroundStyle(.secondary)
-                }
-            } else if wallpaper.path.hasSuffix(".mp4") || wallpaper.path.hasSuffix(".mov") {
-                VideoPreviewView(videoURL: URL(fileURLWithPath: wallpaper.path))
+            let ext = (wallpaper.path as NSString).pathExtension.lowercased()
+            
+            if ["gif", "jpg", "jpeg", "png"].contains(ext) {
+                LazyImagePreview(path: wallpaper.path)
+            } else if ["mp4", "mov"].contains(ext) {
+                videoPreview(videoURL: URL(fileURLWithPath: wallpaper.path))
                     .clipped()
                     .overlay {
                         Image(systemName: "play.circle.fill")
@@ -555,7 +726,7 @@ struct WallpaperCard: View {
                             }
                     }
             } else {
-                Image(systemName: "play.rectangle.fill")
+                Image(systemName: "photo")
                     .font(.system(size: 24, weight: .light))
                     .foregroundStyle(.secondary)
             }
@@ -586,7 +757,7 @@ struct WallpaperCard: View {
             }
         }
     }
-    
+
     private var overlayControls: some View {
         ZStack {
             LinearGradient(
@@ -619,7 +790,7 @@ struct WallpaperCard: View {
                     
                     Spacer()
                     
-                    if isActive {
+                    if isActive && !isStillWallpaper {
                         VolumeSlider(
                             volume: $service.volume,
                             onVolumeChange: { newVolume in
@@ -635,22 +806,43 @@ struct WallpaperCard: View {
                     
                     Spacer()
                     
-                    Button(action: onDelete) {
-                        Circle()
-                            .fill(.red.opacity(0.9))
-                            .frame(width: 24, height: 24)
-                            .overlay {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.white)
-                            }
-                            .background {
-                                Circle()
-                                    .fill(.regularMaterial)
-                                    .frame(width: 28, height: 28)
-                            }
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            isEditing = true
+                        }) {
+                            Circle()
+                                .fill(.mint.opacity(0.9))
+                                .frame(width: 24, height: 24)
+                                .overlay {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.white)
+                                }
+                                .background {
+                                    Circle()
+                                        .fill(.regularMaterial)
+                                        .frame(width: 28, height: 28)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button(action: onDelete) {
+                            Circle()
+                                .fill(.red.opacity(0.9))
+                                .frame(width: 24, height: 24)
+                                .overlay {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.white)
+                                }
+                                .background {
+                                    Circle()
+                                        .fill(.regularMaterial)
+                                        .frame(width: 28, height: 28)
+                                }
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
@@ -673,20 +865,60 @@ struct WallpaperCard: View {
     
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(wallpaper.name)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary.opacity(0.9))
-                .lineLimit(2)
+            if isEditing {
+                HStack(spacing: 4) {
+                    TextField("", text: $editedName)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.9))
+                        .focused($isNameFocused)
+                        .onSubmit {
+                            saveName()
+                        }
+                    
+                    Button(action: saveName) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.green)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button(action: {
+                        isEditing = false
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.primary.opacity(0.1))
+                )
+            } else {
+                Text(wallpaper.name)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .lineLimit(2)
+            }
             
             HStack {
-                Text(wallpaper.path.hasSuffix(".gif") ? "gif" : "video")
+                let ext = (wallpaper.path as NSString).pathExtension.lowercased()
+                
+                let fileType = ["mp4", "mov"].contains(ext) ? "video" :
+                            ext == "gif" ? "gif" :
+                            ["jpg", "jpeg", "png"].contains(ext) ? "image" : "unknown"
+                
+                Text(fileType)
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background {
                         Capsule()
-                            .fill(Color.gray.opacity(0.3))
+                            .fill(Color.brown.opacity(0.3))
                     }
                 
                 Spacer()
@@ -696,5 +928,108 @@ struct WallpaperCard: View {
                     .foregroundStyle(.secondary.opacity(0.8))
             }
         }
+    }
+    
+    private func saveName() {
+        if !editedName.isEmpty && editedName != wallpaper.name {
+            onRename(editedName)
+        }
+        isEditing = false
+    }
+}
+
+struct LazyImagePreview: View {
+    let path: String
+    @State private var image: NSImage?
+    
+    var body: some View {
+        Group {
+            if let image = image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: 276, maxHeight: 184)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.brown.opacity(0.3))
+                    .onAppear {
+                        loadThumbnail()
+                    }
+            }
+        }
+    }
+    
+    private func loadThumbnail() {
+        if let cachedImage = ImageCache.shared.getImage(forKey: path) {
+            self.image = cachedImage
+            return
+        }
+        
+        DispatchQueue.global(qos: .utility).async {
+            if let fullImage = NSImage(contentsOfFile: self.path) {
+                let targetSize = NSSize(width: 276, height: 184)
+                let thumbnail = self.resizeImageToFill(fullImage, to: targetSize)
+                
+                ImageCache.shared.setImage(thumbnail, forKey: self.path)
+                
+                DispatchQueue.main.async {
+                    self.image = thumbnail
+                }
+            }
+        }
+    }
+    
+    private func resizeImageToFill(_ image: NSImage, to size: NSSize) -> NSImage {
+        let imageSize = image.size
+        let widthRatio  = size.width / imageSize.width
+        let heightRatio = size.height / imageSize.height
+        
+        let scaleRatio = max(widthRatio, heightRatio)
+        
+        let scaledSize = NSSize(
+            width: imageSize.width * scaleRatio,
+            height: imageSize.height * scaleRatio
+        )
+        
+        let newImage = NSImage(size: size)
+        newImage.lockFocus()
+        
+        let drawingRect = NSRect(
+            x: (size.width - scaledSize.width) / 2,
+            y: (size.height - scaledSize.height) / 2,
+            width: scaledSize.width,
+            height: scaledSize.height
+        )
+        
+        image.draw(in: drawingRect,
+                  from: NSRect(origin: .zero, size: imageSize),
+                  operation: .copy,
+                  fraction: 1.0)
+        newImage.unlockFocus()
+        return newImage
+    }
+}
+
+class ImageCache {
+    static let shared = ImageCache()
+    private var cache = NSCache<NSString, NSImage>()
+    
+    private init() {
+        cache.countLimit = 30
+        cache.totalCostLimit = 50 * 1024 * 1024 // 50 MB
+    }
+    
+    func getImage(forKey key: String) -> NSImage? {
+        return cache.object(forKey: key as NSString)
+    }
+    
+    func setImage(_ image: NSImage, forKey key: String) {
+        let cost = image.size.width * image.size.height * 4
+        cache.setObject(image, forKey: key as NSString, cost: Int(cost))
+    }
+    
+    func clear() {
+        cache.removeAllObjects()
     }
 }

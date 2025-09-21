@@ -3,7 +3,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab: TabSelection? /*= .wallpapers */
+    @State private var selectedTab: TabSelection = .wallpapers
     @State private var showAuthPrompt = false
     @State private var isAuthenticating = false
     @State private var version_label_alpha: Double = 0.6
@@ -11,23 +11,26 @@ struct ContentView: View {
     private func app_version() -> String {
         if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
-            return "v\(version) (\(build))"
+            return "\(version) (\(build))"
         }
         return "unknown"
     }
     
     enum TabSelection: CaseIterable {
         case wallpapers
+        case browse
         
         var title: String {
             switch self {
             case .wallpapers: return NSLocalizedString("mgr_wp_title", comment: "wallpapers")
+            case .browse: return NSLocalizedString("mgr_browse_title", comment: "browse")
             }
         }
         
         var icon: String {
             switch self {
             case .wallpapers: return "photo.on.rectangle"
+            case .browse: return "globe"
             }
         }
     }
@@ -37,46 +40,59 @@ struct ContentView: View {
             Color.clear
             
             VStack(spacing: 0) {
-            HStack(spacing: 20) {
-            HStack(spacing: 12) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 24, weight: .medium))
-                .foregroundStyle(.primary.opacity(0.8))
-            Text(NSLocalizedString("mgr_title", comment: "macpaper"))
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary.opacity(0.9))
-            
-            Text(app_version())
-                .font(.system(size: 12, weight: .regular, design: .monospaced))
-                .foregroundStyle(.secondary.opacity(version_label_alpha))
-                .padding(.leading, 4)
-                .padding(.top, 4)
+                HStack(spacing: 20) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundStyle(.primary.opacity(0.8))
+                        Text(NSLocalizedString("mgr_title", comment: "macpaper"))
+                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary.opacity(0.9))
+                        
+                        Text(app_version())
+                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                            .foregroundStyle(.secondary.opacity(version_label_alpha))
+                            .padding(.leading, 4)
+                            .padding(.top, 4)
+                    }
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 8) {
+                        ForEach(TabSelection.allCases, id: \.self) { tab in
+                            tabButton(
+                                title: tab.title,
+                                icon: tab.icon,
+                                isSelected: selectedTab == tab,
+                                action: {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        selectedTab = tab
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
-                    
-            Spacer()
-                    
-            HStack(spacing: 8) {
-                tabButton(
-                    title: TabSelection.wallpapers.title,
-                    icon: TabSelection.wallpapers.icon,
-                    isSelected: true,
-                    action: {}
+                .padding(.horizontal, 32)
+                .padding(.vertical, 24)
+                .background(
+                    bg()
                 )
-            }
-        }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 24)
-        .background(
-            bg()
-        )
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        
-        ZStack {
-            ManagerView()
-                .transition(.opacity)
-        }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                
+                ZStack {
+                    Group {
+                        switch selectedTab {
+                        case .wallpapers:
+                            ManagerView()
+                        case .browse:
+                            BrowseView()
+                        }
+                    }
+                    .transition(.opacity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .focusable(false)
         }

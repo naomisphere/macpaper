@@ -17,7 +17,7 @@
 #define ERR_PREFIX "error:"
 
 void p_usage(const char* cl) {
-    fprintf(stderr, "macpaper - macOS Custom Wallpaper Manager\n\
+    fprintf(stderr, "macpaper - The macOS Wallpaper Manager\n\
 Usage: %s [ OPTION ] [ FILE ] ...\n\n\
 Options:\n\
     --set [ FILE ]          set FILE (.mov, .mp4, .gif) as wallpaper\n\
@@ -28,7 +28,8 @@ Options:\n\
 Examples:\n\
     %s --set ~/Downloads/hornet.gif\n\
     %s --persist\n\
-    %s --volume 50\n", cl, cl, cl, cl);
+    %s --volume 50\n\n\
+    This tool is only useful for moving wallpapers!", cl, cl, cl, cl);
 }
 
 int n_la(const char *wp_img) {

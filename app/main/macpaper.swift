@@ -18,12 +18,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var status_item: NSStatusItem?
     var _mwin: NSWindow?
     var _mwin_open = false
+    var updater = Updater()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         NSApp.windows.forEach { $0.close() }
         make_paper_sb_item()
         start_launchAgent()
+        updater.checkForUpdates()
     }
     
     func start_launchAgent() {

@@ -1,12 +1,12 @@
 <h1 align="center">
   <br>
-  <a href="http://macpaper.github.io"><img src="https://github.com/user-attachments/assets/41098f87-f856-4ce6-a931-62be8c6d5be9" alt="macpaper" width="150"></a>
+  <a href="http://macpaper.github.io"><img src="https://github.com/user-attachments/assets/0d2f86cb-a77d-4491-ab0f-f78bb61f0c66" alt="macpaper" width="150"></a>
   <br>
   macpaper
   <br>
 </h1>
 <p align="center">
-  <i>Custom Moving Wallpapers on macOS</i>
+  <i>✨ The Wallpaper Manager for macOS</i>
 </p>
 
 <p align="center">
@@ -18,7 +18,12 @@
   </a>
 </p>
 
-macpaper is a simple tool that allows you to set your own moving wallpapers (.mp4, .gif, .mov) on macOS. It does so by creating a completely transparent window that lays behind everything on your desktop, and will play your "wallpaper" using AVPlayer.
+<p align="center">
+macpaper is a feature-packed lightweight Wallpaper Manager for macOS, with support for gifs, videos, and online wallpaper browsing, among other many things!
+<br><br>
+At the start, macpaper was no more than a simple tool with boring... features... Zzz...
+But now, it's evolved to an advanced tool for customization of your wallpaper, all while keeping sure it doesn't eat your RAM.
+</p>
 
 <h1 align="center">
 ✨ Preview
@@ -74,4 +79,4 @@ xattr -dr com.apple.quarantine /Applications/macpaper.app
 ```
 
 ### Apple could not verify "macpaper" is free of malware...
-You can fix this by doing the same steps as [here](https://github.com/naomisphere/macpaper/edit/main/README.md#installation).
+You can fix this by doing the same steps as [here](https://github.com/naomisphere/macpaper/tree/main/README.md#installation).

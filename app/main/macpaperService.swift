@@ -10,6 +10,8 @@ class macpaperService: NSObject, ObservableObject {
     @Published var volume: Double = 0.5
     @Published var wp_is_agent: Bool = false
     @Published var ap_is_enabled: Bool = false
+    @Published var showVideos: Bool = true
+    @Published var showImages: Bool = true
     
     private let wrapped_obj: String
     private let wp_storage_dir = FileManager.default.homeDirectoryForCurrentUser
@@ -42,15 +44,21 @@ class macpaperService: NSObject, ObservableObject {
                 let data = try Data(contentsOf: settings_file)
                 let settings = try JSONDecoder().decode([String: Bool].self, from: data)
                 ap_is_enabled = settings["ap_is_enabled"] ?? false
+                showVideos = settings["showVideos"] ?? true
+                showImages = settings["showImages"] ?? true
             }
         } catch {
             print("while loading settings: \(error)")
         }
     }
     
-    private func saveSettings() {
+    func saveSettings() {
         do {
-            let settings: [String: Bool] = ["ap_is_enabled": ap_is_enabled]
+            let settings: [String: Bool] = [
+                "ap_is_enabled": ap_is_enabled,
+                "showVideos": showVideos,
+                "showImages": showImages
+            ]
             let data = try JSONEncoder().encode(settings)
             try FileManager.default.createDirectory(at: settings_file.deletingLastPathComponent(), 
                                                   withIntermediateDirectories: true)
@@ -79,19 +87,19 @@ class macpaperService: NSObject, ObservableObject {
     }
 
     func fetch_wallpapers() {
-        isLoading = true
-        
-        try? FileManager.default.createDirectory(at: wp_storage_dir, withIntermediateDirectories: true)
-        
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            guard let self = self else { return }
-            do {
-                let files = try FileManager.default.contentsOfDirectory(at: self.wp_storage_dir, includingPropertiesForKeys: [.creationDateKey, .fileSizeKey])
-                
-                let possible_wp_obj = files.filter { url in
-                    let ext = url.pathExtension.lowercased()
-                    return ["mov", "mp4", "gif"].contains(ext)
-                }
+    isLoading = true
+    
+    try? FileManager.default.createDirectory(at: wp_storage_dir, withIntermediateDirectories: true)
+    
+    DispatchQueue.global(qos: .background).async { [weak self] in
+        guard let self = self else { return }
+        do {
+            let files = try FileManager.default.contentsOfDirectory(at: self.wp_storage_dir, includingPropertiesForKeys: [.creationDateKey, .fileSizeKey])
+            
+            let possible_wp_obj = files.filter { url in
+                let ext = url.pathExtension.lowercased()
+                return ["mov", "mp4", "gif", "jpg", "jpeg", "png"].contains(ext)
+            }
                 
                 let items = possible_wp_obj.compactMap { url -> endup_wp? in
                     guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
@@ -111,7 +119,23 @@ class macpaperService: NSObject, ObservableObject {
                 }
                 
                 DispatchQueue.main.async {
-                    self.wallpapers = items.sorted { $0.createdDate > $1.createdDate }
+                    var filteredItems = items
+                    
+                    if !self.showVideos {
+                        filteredItems = filteredItems.filter { wp in
+                            let ext = (wp.path as NSString).pathExtension.lowercased()
+                            return !["mov", "mp4", "gif"].contains(ext)
+                        }
+                    }
+                    
+                    if !self.showImages {
+                        filteredItems = filteredItems.filter { wp in
+                            let ext = (wp.path as NSString).pathExtension.lowercased()
+                            return !["jpg", "jpeg", "png"].contains(ext)
+                        }
+                    }
+                    
+                    self.wallpapers = filteredItems.sorted { $0.createdDate > $1.createdDate }
                     self.isLoading = false
                 }
             } catch {
@@ -122,16 +146,71 @@ class macpaperService: NSObject, ObservableObject {
             }
         }
     }
+
+    // for still wallpapers, we just use osascript.
+    // i may need to work further on still wallpaper handling later
+    func set_still_wp(_ wallpaper: endup_wp) {
+    let task = Process()
+    task.launchPath = "/usr/bin/osascript"
+    
+    let script = """
+    tell application "System Events"
+        tell every desktop
+            set picture to POSIX file "\(wallpaper.path)"
+        end tell
+    end tell
+    """
+    
+    task.arguments = ["-e", script]
+    
+    do {
+        try task.run()
+        task.waitUntilExit()
+        
+        if task.terminationStatus == 0 {
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            let current_wp_file = home.appendingPathComponent(".local/share/macpaper/current_wallpaper")
+            
+            try? FileManager.default.createDirectory(at: current_wp_file.deletingLastPathComponent(), 
+                                                   withIntermediateDirectories: true)
+            try? wallpaper.path.write(to: current_wp_file, atomically: true, encoding: .utf8)
+            
+            DispatchQueue.main.async {
+                self.current_wp = wallpaper.path
+            }
+        }
+    } catch {
+        print("while setting still wallpaper: \(error)")
+    }
+}
+
     
     func set_wp(_ wallpaper: endup_wp) {
-        if current_wp != nil {
-            _unset_wp { [weak self] in
+    let ext = (wallpaper.path as NSString).pathExtension.lowercased()
+    let isMovingWallpaper = ["mov", "mp4", "gif"].contains(ext)
+    let isStillWallpaper = ["jpg", "jpeg", "png"].contains(ext)
+    
+    guard isMovingWallpaper || isStillWallpaper else {
+        print("unsupported file format: \(ext)")
+        return
+    }
+    
+    if current_wp != nil {
+        _unset_wp { [weak self] in
+            if isMovingWallpaper {
                 self?.set_wp_after_unset(wallpaper)
+            } else {
+                self?.set_still_wp(wallpaper)
             }
-        } else {
+        }
+    } else {
+        if isMovingWallpaper {
             set_wp_after_unset(wallpaper)
+        } else {
+            set_still_wp(wallpaper)
         }
     }
+}
     
     private func set_wp_after_unset(_ wallpaper: endup_wp) {
         _exec([wrapped_obj, "--set", wallpaper.path]) { [weak self] success in
@@ -146,18 +225,36 @@ class macpaperService: NSObject, ObservableObject {
     }
 
     private func _unset_wp(completion: @escaping () -> Void) {
-        current_wp = nil
-        wp_is_agent = false
-        
-        _exec([wrapped_obj, "--unset"]) { [weak self] success in
-            if !success {
-                print("error: couldn't unset wallpaper")
+    current_wp = nil
+    wp_is_agent = false
+    
+    // check if current wallpaper is a still iamge
+    if let currentPath = current_wp {
+        let ext = (currentPath as NSString).pathExtension.lowercased()
+        if ["jpg", "jpeg", "png"].contains(ext) {
+            // if it is, we don't need to use macpaper-bin to unset
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            let current_wp_file = home.appendingPathComponent(".local/share/macpaper/current_wallpaper")
+            
+            if FileManager.default.fileExists(atPath: current_wp_file.path) {
+                try? FileManager.default.removeItem(at: current_wp_file)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                completion()
-            }
+            
+            completion()
+            return
         }
     }
+    
+    // for moving wallpapers, use macpaper-bin
+    _exec([wrapped_obj, "--unset"]) { [weak self] success in
+        if !success {
+            print("error: couldn't unset wallpaper")
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            completion()
+        }
+    }
+}
     
     func unset_wp() {
         _unset_wp {

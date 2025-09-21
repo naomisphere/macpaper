@@ -23,10 +23,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         NSApp.windows.forEach { $0.close() }
         make_paper_sb_item()
-        startLaunchAgentIfNeeded()
+        start_launchAgent()
     }
     
-    func startLaunchAgentIfNeeded() {
+    func start_launchAgent() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let launchAgent = home.appendingPathComponent("Library/LaunchAgents/com.naomisphere.macpaper.wallpaper.plist")
         
@@ -58,33 +58,71 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func show_manager() {
-        if _mwin == nil {
-            let contentView = ContentView()
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-                backing: .buffered,
-                defer: false
-            )
-            
-            window.isReleasedWhenClosed = false
-            window.center()
-            window.title = "macpaper"
-            window.titleVisibility = .hidden
-            window.titlebarAppearsTransparent = true
-            window.isOpaque = false
-            window.backgroundColor = NSColor(calibratedRed: 0.02, green: 0.1, blue: 0.08, alpha: 0.65)
-            window.hasShadow = true
-            window.contentView = NSHostingView(rootView: contentView)
-            window.delegate = self
-            
-            _mwin = window
-        }
+    if _mwin == nil {
+        let contentView = ContentView()
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.title = "macpaper"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isOpaque = false
+        window.hasShadow = true
+        
+        if #available(macOS 26.0, *) {
+            window.backgroundColor = .clear
 
-        _mwin?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        _mwin_open = true
+            let glassManager = glassObj()
+            window.contentView = NSHostingView(rootView: glassManager)
+
+            window.contentView?.wantsLayer = true
+            window.contentView?.layer?.cornerRadius = 20
+            window.contentView?.layer?.masksToBounds = true
+            
+        } else {
+            window.backgroundColor = NSColor(calibratedRed: 0.162, green: 0.389, blue: 1, alpha: 0.35)
+            window.contentView = NSHostingView(rootView: contentView)
+            window.contentView?.wantsLayer = true
+            window.contentView?.layer?.cornerRadius = 0
+            window.contentView?.layer?.masksToBounds = false
+        }
+        
+        window.delegate = self
+        _mwin = window
     }
+
+    _mwin?.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+    _mwin_open = true
+}
+
+@available(macOS 26.0, *)
+struct glassObj: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(NSColor(calibratedRed: 0.162, green: 0.389, blue: 1, alpha: 0.35)),
+                            Color(NSColor(calibratedRed: 0.162, green: 0.389, blue: 1, alpha: 0.2))
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .glassEffect(in: .rect(cornerRadius: 28))
+                .ignoresSafeArea()
+            ContentView()
+        }
+    }
+}
     
     func close_manager() {
         _mwin?.close()
@@ -96,51 +134,51 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func sb_item_menu() -> NSMenu {
-        let menu = NSMenu()
-        let service = macpaperService()
-        
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let current_wp = home.appendingPathComponent(".local/share/macpaper/current_wallpaper")
-        var wallpaper_is_set = false
-        var _wp: String?
-        
-        if FileManager.default.fileExists(atPath: current_wp.path) {
-            if let currentPath = try? String(contentsOf: current_wp).trimmingCharacters(in: .whitespacesAndNewlines) {
-                wallpaper_is_set = FileManager.default.fileExists(atPath: currentPath)
-                _wp = currentPath
-            }
+    let menu = NSMenu()
+    let service = macpaperService()
+    
+    let home = FileManager.default.homeDirectoryForCurrentUser
+    let current_wp = home.appendingPathComponent(".local/share/macpaper/current_wallpaper")
+    var wallpaper_is_set = false
+    var _wp: String?
+    
+    if FileManager.default.fileExists(atPath: current_wp.path) {
+        if let currentPath = try? String(contentsOf: current_wp).trimmingCharacters(in: .whitespacesAndNewlines) {
+            wallpaper_is_set = FileManager.default.fileExists(atPath: currentPath)
+            _wp = currentPath
         }
-        
-        let wp_storage_dir = home.appendingPathComponent(".local/share/paper/wallpaper")
-        var wallpapers: [endup_wp] = []
-        
-        if FileManager.default.fileExists(atPath: wp_storage_dir.path) {
-            do {
-                let files = try FileManager.default.contentsOfDirectory(at: wp_storage_dir, includingPropertiesForKeys: [.creationDateKey, .fileSizeKey])
+    }
+    
+    let wp_storage_dir = home.appendingPathComponent(".local/share/paper/wallpaper")
+    var wallpapers: [endup_wp] = []
+    
+    if FileManager.default.fileExists(atPath: wp_storage_dir.path) {
+        do {
+            let files = try FileManager.default.contentsOfDirectory(at: wp_storage_dir, includingPropertiesForKeys: [.creationDateKey, .fileSizeKey])
+            
+            wallpapers = files.filter { url in
+                let ext = url.pathExtension.lowercased()
+                return ["mov", "mp4", "gif", "jpg", "jpeg", "png"].contains(ext)
+            }.compactMap { url -> endup_wp? in
+                guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+                      let createdDate = attrs[.creationDate] as? Date,
+                      let fileSize = attrs[.size] as? Int64 else {
+                    return nil
+                }
                 
-                wallpapers = files.filter { url in
-                    let ext = url.pathExtension.lowercased()
-                    return ["mov", "mp4", "gif"].contains(ext)
-                }.compactMap { url -> endup_wp? in
-                    guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-                          let createdDate = attrs[.creationDate] as? Date,
-                          let fileSize = attrs[.size] as? Int64 else {
-                        return nil
-                    }
-                    
-                    return endup_wp(
-                        id: UUID(),
-                        name: url.deletingPathExtension().lastPathComponent,
-                        path: url.path,
-                        preview: nil,
-                        createdDate: createdDate,
-                        fileSize: fileSize
-                    )
-                }.sorted { $0.createdDate > $1.createdDate }
-            } catch {
-                print(error)
-            }
+                return endup_wp(
+                    id: UUID(),
+                    name: url.deletingPathExtension().lastPathComponent,
+                    path: url.path,
+                    preview: nil,
+                    createdDate: createdDate,
+                    fileSize: fileSize
+                )
+            }.sorted { $0.createdDate > $1.createdDate }
+        } catch {
+            print(error)
         }
+    }
         
         if wallpapers.isEmpty {
             let __no_wp_item = NSMenuItem(

@@ -6,7 +6,7 @@
 "unset_current" = "unset current";
 "refresh" = "refresh";
 "loading_wallpapers" = "loading wallpapers...";
-"scanning_files" = "scanning for video files";
+"scanning_files" = "scanning for files";
 "no_wallpapers_found" = "no wallpapers found";
 "drop_files_or_add" = "drop files here or click 'add wallpaper'";
 "supported_formats" = "supported formats: .mp4, .mov, .gif";
@@ -63,6 +63,18 @@
 "category_anime" = "Anime";
 "category_people" = "People";
 "category_all" = "All";
+
+"settings_general" = "General";
+"settings_updates" = "Updates";
+"settings_check_updates" = "Check for Updates";
+"settings_check_updates_desc" = "Check for updates on startup";
+
+"settings_manager" = "Manager";
+"settings_playback" = "Playback";
+
+"settings_behavior" = "Playback Behavior";
+"settings_volume" = "Playback Volume";
+"settings_default_volume" = "Default Volume";
 
 "settings_api_key" = "Wallhaven API Key";
 "settings_api_key_description" = "Experimental. Clear if it breaks.";

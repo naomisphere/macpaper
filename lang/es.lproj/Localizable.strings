@@ -6,7 +6,7 @@
 "unset_current" = "quitar fondo actual";
 "refresh" = "actualizar";
 "loading_wallpapers" = "cargando fondos...";
-"scanning_video_files" = "buscando archivos de video";
+"scanning_files" = "buscando fondos...";
 "no_wallpapers_found" = "no se encontraron fondos";
 "drop_files_or_add" = "suelta archivos aquí o haz clic en 'añadir fondo'";
 "supported_formats" = "formatos aceptados: .mp4, .mov, .gif";
@@ -61,6 +61,18 @@
 "category_anime" = "Anime";
 "category_people" = "Personas";
 "category_all" = "Todos";
+
+"settings_general" = "General";
+"settings_updates" = "Actualizaciones";
+"settings_check_updates" = "Buscar actualizaciones";
+"settings_check_updates_desc" = "Buscar actualizaciones al iniciar";
+
+"settings_manager" = "Gestor";
+"settings_playback" = "Reproducción";
+
+"settings_behavior" = "Comportamiento de reproducción";
+"settings_volume" = "Volumen de reproducción";
+"settings_default_volume" = "Volumen predeterminado";
 
 "settings_api_key" = "Clave API de Wallhaven";
 "settings_api_key_description" = "Experimental. Quítala si rompe algo.";

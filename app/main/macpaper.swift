@@ -8,16 +8,21 @@ struct macpaper: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
-        Settings {
-            EmptyView()
+        WindowGroup("Settings") {
+            SettingsView()
+                .environmentObject(macpaperService())
+                .frame(minWidth: 400, minHeight: 500)
         }
+        .windowStyle(DefaultWindowStyle())
     }
 }
+
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var status_item: NSStatusItem?
     var _mwin: NSWindow?
     var _mwin_open = false
+    @AppStorage("checkForUpdates") private var checkForUpdates = true
     var updater = Updater()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -25,7 +30,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.windows.forEach { $0.close() }
         make_paper_sb_item()
         start_launchAgent()
-        updater.checkForUpdates()
+        
+        if checkForUpdates {
+            updater.checkForUpdates()
+        }
     }
     
     func start_launchAgent() {

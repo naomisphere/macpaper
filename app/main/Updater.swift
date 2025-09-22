@@ -15,7 +15,7 @@ class Updater: ObservableObject {
     @Published var updateError: String?
     @Published var latestVersion: String?
     
-    private let latestVersionURL = URL(string: "https://raw.githubusercontent.com/naomisphere/macpaper/tb/latest")!
+    private let latestVersionURL = URL(string: "https://raw.githubusercontent.com/naomisphere/macpaper/main/latest")!
     
     func checkForUpdates() {
         guard let currentVersion = Bundle.main.infoDictionary?["CFBundleVersion"] as? String else {
@@ -35,7 +35,7 @@ class Updater: ObservableObject {
             
             DispatchQueue.main.async {
                 self.latestVersion = latestVersion
-                self.updateAvailable = latestVersion != currentVersion
+                self.updateAvailable = self.v(latestVersion, newerThan: currentVersion)
                 
                 if self.updateAvailable {
                     self.showUpdatePrompt()
@@ -101,6 +101,10 @@ class Updater: ObservableObject {
             updateError = error.localizedDescription
             isUpdating = false
         }
+    }
+
+    private func v(_ v1: String, newerThan v2: String) -> Bool {
+        return v1.compare(v2, options: .numeric) == .orderedDescending
     }
     
     private func show_reopen_prompt() {

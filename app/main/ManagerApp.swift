@@ -153,23 +153,35 @@ struct ManagerView: View {
     }
 
     private func show_settings() {
-        let settingsView = SettingsView()
-            .environmentObject(service)
+    let settingsView = SettingsView()
+        .environmentObject(service)
+    
+    let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 500, height: 500),
+        styleMask: [.titled, .closable, .resizable],
+        backing: .buffered,
+        defer: false
+    )
+    
+    if let managerWindow = NSApp.keyWindow {
+        let managerFrame = managerWindow.frame
+        let settingsSize = window.frame.size
         
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
+        let x = managerFrame.midX - settingsSize.width / 2
+        let y = managerFrame.midY - settingsSize.height / 2
         
+        window.setFrameOrigin(NSPoint(x: x, y: y))
+    } else {
         window.center()
-        window.title = "Settings"
-        window.contentView = NSHostingView(rootView: settingsView)
-        window.isReleasedWhenClosed = false
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
+    
+    window.title = "Settings"
+    window.titleVisibility = .hidden
+    window.contentView = NSHostingView(rootView: settingsView)
+    window.isReleasedWhenClosed = false
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+}
 
     private func showFilterMenu() {
     let menu = NSMenu()

@@ -40,6 +40,12 @@ But now, it's evolved to an advanced tool for customization of your wallpaper, a
 - macOS **12** *(Monterey)* or later
 - Silicon/Intel Mac
 
+## 🍺 Homebrew (recommended)
+```
+brew install --cask naomisphere/macpaper/macpaper --no-quarantine
+```
+
+## Manual
 ---
 > [!IMPORTANT]
 > After downloading and trying to launch the app, you will receive a text saying that it is from an unidentified developer.
@@ -89,5 +95,5 @@ xattr -dr com.apple.quarantine /Applications/macpaper.app
 You can fix this by doing the same steps as [here](https://github.com/naomisphere/macpaper/tree/main/README.md#installation).
 
 ## ❤️ Support me
-☕ If you really liked my work and want to support me, you can do so via Ko-fi:\
+☕ If you like my work and want to support me, you can do so via Ko-fi:\
 https://ko-fi.com/naomisphere

@@ -9,7 +9,7 @@
 "scanning_files" = "buscando fondos...";
 "no_wallpapers_found" = "no se encontraron fondos";
 "drop_files_or_add" = "suelta archivos aquí o haz clic en 'añadir fondo'";
-"supported_formats" = "formatos aceptados: .mp4, .mov, .gif";
+"supported_formats" = "formatos aceptados: .mp4, .mov, .gif, .png, .jpg, .jpeg";
 "set_wallpaper" = "establecer fondo";
 "gif_format" = "gif";
 "video_format" = "video";

@@ -9,7 +9,7 @@
 "scanning_files" = "procurando arquivos de vídeo";
 "no_wallpapers_found" = "nenhum papel de parede encontrado";
 "drop_files_or_add" = "solte os arquivos aqui ou clique em 'Adicionar Papel de Parede'";
-"supported_formats" = "formatos suportados: .mp4, .mov, .gif";
+"supported_formats" = "formatos suportados: .mp4, .mov, .gif, .png, .jpg, .jpeg";
 "set_wallpaper" = "Definir como Papel de Parede";
 "gif_format" = "gif";
 "video_format" = "vídeo";

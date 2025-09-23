@@ -9,7 +9,7 @@
 "scanning_files" = "scanning for files";
 "no_wallpapers_found" = "no wallpapers found";
 "drop_files_or_add" = "drop files here or click 'add wallpaper'";
-"supported_formats" = "supported formats: .mp4, .mov, .gif";
+"supported_formats" = "supported formats: .mp4, .mov, .gif, .png, .jpg, .jpeg";
 "set_wallpaper" = "set wallpaper";
 "gif_format" = "gif";
 "video_format" = "video";

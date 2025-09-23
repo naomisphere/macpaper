@@ -146,3 +146,7 @@ xattr -dr com.apple.quarantine /Applications/macpaper.app
 
 ### Apple could not verify "macpaper" is free of malware...
 You can fix this by doing the same steps as [here](https://github.com/naomisphere/macpaper/tree/main/README.md#installation).
+
+## ❤️ Support me
+☕ If you really liked my work and want to support me, you can do so via Ko-fi:\
+https://ko-fi.com/naomisphere

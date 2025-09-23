@@ -42,9 +42,14 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 HStack(spacing: 20) {
                     HStack(spacing: 12) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundStyle(.primary.opacity(0.8))
+                        HStack(spacing: 12) {
+                            if let image = NSImage(named: ".macpaper_tear") {
+                                Image(nsImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 34, height: 34)
+                            }
+                        }
                         Text(NSLocalizedString("mgr_title", comment: "macpaper"))
                             .font(.system(size: 28, weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary.opacity(0.9))

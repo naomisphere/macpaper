@@ -1,11 +1,12 @@
 "mgr_title" = "";
 "mgr_wp_title" = "";
+"mgr_browse_title" = "";
 "add_wallpaper" = "";
 "persist" = "";
 "unset_current" = "";
 "refresh" = "";
 "loading_wallpapers" = "";
-"scanning_video_files" = "";
+"scanning_files" = "";
 "no_wallpapers_found" = "";
 "drop_files_or_add" = "";
 "supported_formats" = "";
@@ -13,9 +14,14 @@
 "gif_format" = "";
 "video_format" = "";
 
+"filter" = "";
+"show_types" = "";
+"show_videos" = "";
+"show_images" = "";
+
 "sb_no_wallpapers" = "";
 "sb_wallpapers" = "";
-"sb_large_count" = "%d";
+"sb_large_count" = "";
 "sb_perst_enabled" = "";
 "sb_enable_perst" = "";
 "sb_unset_wp" = "";
@@ -26,3 +32,45 @@
 "settings" = "";
 "cfg_auto_pause" = "";
 "cfg_auto_pause_desc" = "";
+
+"browse_save" = "";
+"browse_cancel" = "";
+"browse_search_placeholder" = "";
+"browse_filters" = "";
+"browse_category" = "";
+"browse_purity" = "";
+"browse_sort" = "";
+"browse_desc" = "";
+"browse_asc" = "";
+"browse_apply" = "";
+"browse_loading" = "";
+"browse_no_results" = "";
+"browse_try_search" = "";
+"browse_provider" = "";
+"browse_wallhaven" = "";
+"browse_local" = "";
+
+"sort_date" = "";
+"sort_relevance" = "";
+"sort_random" = "";
+"sort_views" = "";
+"sort_favorites" = "";
+"sort_top" = "";
+
+"purity_all" = "";
+
+"category_general" = "";
+"category_anime" = "";
+"category_people" = "";
+"category_all" = "";
+
+"settings_api_key" = "";
+"settings_api_key_description" = "";
+"settings_enter_api_key" = "";
+"settings_save" = "";
+"settings_cancel" = "";
+"settings_no_api_key" = "";
+"settings_api_key_set" = "";
+"settings_add_api_key" = "";
+"settings_change_api_key" = "";
+"settings_invalid_api_key" = "";

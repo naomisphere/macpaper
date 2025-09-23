@@ -56,6 +56,72 @@ But now, it's evolved to an advanced tool for customization of your wallpaper, a
 
 ---
 
+## 🛠️ Development & Building from Source
+
+To compile **macpaper** from its source code, you will need the **Swift toolchain**, which is included with **Xcode**.
+
+There are two primary methods for building the application.
+
+---
+
+### ✅ Method 1: Using Swift Package Manager (Recommended)
+
+This is the most straightforward approach.
+
+1. Clone the repository
+
+```bash
+git clone https://github.com/naomisphere/macpaper.git
+cd macpaper
+```
+
+2. Initialize submodules
+
+This project uses submodules, so you'll need to pull them:
+
+```bash
+git submodule update --init --recursive
+```
+
+3. Build and run
+
+Use the Swift CLI to build the project and run it:
+
+```bash
+swift build && swift run
+```
+
+### 🛠️ Method 2: Manual Compilation (Legacy)
+
+This method is for building without relying on SwiftPM or Xcode's build system.
+
+1. Build the Wallpaper Service
+
+Compile the `glasswp` helper which manages the wallpaper:
+
+```bash
+swiftc glasswp/glasswp.swift -framework AppKit -framework AVFoundation -o "glasswp"
+```
+
+2. Build the Main Application
+
+Compile the Swift files for the main application interface:
+
+```bash
+swiftc app/main/*.swift -framework SwiftUI -framework AppKit -framework AVFoundation -o macpaper
+```
+
+3. Prepare and Run
+
+The compiled helper must be renamed and placed alongside the main application binary before running:
+
+```bash
+mv "glasswp" "macpaper Wallpaper Service (glasswp)"
+./macpaper
+```
+
+---
+
 ## License
 macpaper is licensed under the GNU General Public License v3.0 (GPLv3). See the [LICENSE](./LICENSE) file for details.
 

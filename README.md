@@ -62,6 +62,8 @@ macpaper is licensed under the GNU General Public License v3.0 (GPLv3). See the 
 ## 🉑️ Translating
 Contributing to translation is pretty simple and straightforward -partly because there are not many strings to translate-. Fork the repo, grab the template on the [lang](./lang) folder (or an already existing strings file), and replace the value of the keys with the ones respective to your language. Then, upload the translation to lang/{lang}.lproj and submit a pull request.
 
+It is advised that you, alongside the strings file, place a file named `credit` with a link to your GitHub profile, or just your username.
+
 ## 🤝 Thanks to
 - [Boring Notch](https://github.com/TheBoredTeam/boring.notch), for README inspiration
 - [This post](https://stackoverflow.com/questions/34215527/what-does-launchd-status-78-mean-why-my-user-agent-not-running), because it stopped me from going insane

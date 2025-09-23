@@ -26,16 +26,41 @@ struct ManagerView: View {
     @StateObject private var service = macpaperService()
     @State private var show_importer = false
     @State private var file_drag = false
+    @State private var show_wp_util_overlay = false
+    @State private var overlay_chosen_wp: endup_wp? = nil
     private let menuHandler = MenuHandler()
     
-    var body: some View {
-        VStack(spacing: 0) {
-            toolbarView
-            contentView
+        var body: some View {
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                toolbarView
+                contentView
+            }
+
+            if show_wp_util_overlay, let wallpaper = overlay_chosen_wp {
+                WPCUtilOverlay(
+                    wallpaper: wallpaper,
+                    onClose: {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            service.select_wp(nil)
+                            show_wp_util_overlay = false
+                            overlay_chosen_wp = nil
+                        }
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(1)
+            }
         }
         .onAppear {
             service.fetch_wallpapers()
             menuHandler.service = service
+        }
+        .onChange(of: service.selected_wp) { selected in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                show_wp_util_overlay = selected != nil
+                overlay_chosen_wp = selected
+            }
         }
         .fileImporter(
             isPresented: $show_importer,
@@ -322,7 +347,7 @@ private func findButton(with title: String, in view: NSView) -> NSButton? {
         }
     }
     
-    private var gridView: some View {
+        private var gridView: some View {
         ScrollView {
             let columns = [
                 GridItem(.fixed(300), spacing: 30),
@@ -335,14 +360,27 @@ private func findButton(with title: String, in view: NSView) -> NSButton? {
                     WallpaperCard(
                         wallpaper: wallpaper,
                         isActive: service.current_wp == wallpaper.path,
+                        cardIsSelected: service.selected_wp?.id == wallpaper.id,
                         onSelect: {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 service.set_wp(wallpaper)
                             }
                         },
+                        onTap: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                if service.selected_wp?.id == wallpaper.id {
+                                    service.select_wp(nil)
+                                } else {
+                                    service.select_wp(wallpaper)
+                                }
+                            }
+                        },
                         onDelete: {
                             withAnimation(.easeInOut(duration: 0.4)) {
                                 delete_wp(wallpaper)
+                                if service.selected_wp?.id == wallpaper.id {
+                                    service.select_wp(nil)
+                                }
                             }
                         },
                         onRename: { newName in
@@ -673,7 +711,9 @@ struct VolumeSlider: View {
 struct WallpaperCard: View {
     let wallpaper: endup_wp
     let isActive: Bool
+    let cardIsSelected: Bool
     let onSelect: () -> Void
+    let onTap: () -> Void
     let onDelete: () -> Void
     let onRename: (String) -> Void
     
@@ -702,8 +742,16 @@ struct WallpaperCard: View {
                 .fill(.regularMaterial.opacity(0.8))
                 .overlay {
                     RoundedRectangle(cornerRadius: 22)
-                        .stroke(.primary.opacity(0.1), lineWidth: 0.5)
+                        .stroke(
+                            cardIsSelected ? Color.blue.opacity(0.6) :
+                            isActive ? Color.primary.opacity(0.4) : Color.primary.opacity(0.1), 
+                            lineWidth: cardIsSelected ? 3 : (isActive ? 2 : 1)
+                        )
                 }
+        }
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .onTapGesture {
+            onTap()
         }
         .onChange(of: isEditing) { editing in
             if editing {
@@ -713,9 +761,14 @@ struct WallpaperCard: View {
                 }
             }
         }
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isHovered = hovering
+            }
+        }
     }
-    
-    private var previewSection: some View {
+
+        private var previewSection: some View {
         ZStack {
             Rectangle()
                 .fill(Color.brown.opacity(0.2))
@@ -1020,6 +1073,93 @@ struct LazyImagePreview: View {
                   fraction: 1.0)
         newImage.unlockFocus()
         return newImage
+    }
+}
+
+struct WPCUtilOverlay: View {
+    let wallpaper: endup_wp
+    let onClose: () -> Void
+    
+    @State private var isHovered = false
+    @State private var thumbnailImage: NSImage? = nil
+    
+    var body: some View {
+        HStack(spacing: 20) {
+            Group {
+                let ext = (wallpaper.path as NSString).pathExtension.lowercased()
+                
+                if ["gif", "jpg", "jpeg", "png"].contains(ext) {
+                    LazyImagePreview(path: wallpaper.path)
+                        .id(wallpaper.id)
+                        .frame(width: 60, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else if ["mp4", "mov"].contains(ext) {
+                    videoPreview(videoURL: URL(fileURLWithPath: wallpaper.path))
+                        .id(wallpaper.id)
+                        .frame(width: 60, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                } else {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.3))
+                        .frame(width: 60, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay {
+                            Image(systemName: "photo")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.secondary)
+                        }
+                }
+            }
+            .transition(.opacity)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(wallpaper.name)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                
+                Text(ByteCountFormatter.string(fromByteCount: wallpaper.fileSize, countStyle: .file))
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Spacer()
+            
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .frame(width: 32, height: 32)
+                    .background {
+                        Circle()
+                            .fill(.regularMaterial)
+                            .overlay {
+                                Circle()
+                                .stroke(.primary.opacity(0.1), lineWidth: 1)
+                            }
+                    }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(width: 300)
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                    .stroke(.primary.opacity(0.1), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+        }
+        .padding(.bottom, 20)
+        .transition(.opacity)
     }
 }
 

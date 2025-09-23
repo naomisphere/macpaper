@@ -43,8 +43,8 @@ struct ContentView: View {
                 HStack(spacing: 20) {
                     HStack(spacing: 12) {
                         HStack(spacing: 12) {
-                            if let image = NSImage(named: ".macpaper_tear") {
-                                Image(nsImage: image)
+                            if let mp_tear = NSImage(named: ".macpaper_tear") {
+                                Image(nsImage: mp_tear)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 34, height: 34)
@@ -64,6 +64,29 @@ struct ContentView: View {
                     Spacer()
                     
                     HStack(spacing: 8) {
+                        Button(action: {
+                            if let url = URL(string: "https://ko-fi.com/naomisphere") {
+                                NSWorkspace.shared.open(url)
+                            }
+                    }) {
+                    if let kofi_cup = NSImage(named: ".kofi") {
+                        Image(nsImage: kofi_cup)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 18, height: 18)
+                            .frame(width: 36, height: 36)
+                            .background {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.regularMaterial.opacity(0.6))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(.primary.opacity(0.2), lineWidth: 1)
+                                    }
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+
                         ForEach(TabSelection.allCases, id: \.self) { tab in
                             tabButton(
                                 title: tab.title,

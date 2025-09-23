@@ -12,6 +12,7 @@ class macpaperService: NSObject, ObservableObject {
     @Published var ap_is_enabled: Bool = false
     @Published var showVideos: Bool = true
     @Published var showImages: Bool = true
+    @Published var selected_wp: endup_wp? = nil
     
     private let wrapped_obj: String
     private let wp_storage_dir = FileManager.default.homeDirectoryForCurrentUser
@@ -24,6 +25,10 @@ class macpaperService: NSObject, ObservableObject {
         wrapped_obj = "\(app_path)/Contents/MacOS/macpaper-bin"
         super.init()
         loadSettings()
+    }
+
+    func select_wp(_ wallpaper: endup_wp?) {
+        selected_wp = wallpaper
     }
 
     func _ap_enabled(_ enabled: Bool) {
@@ -194,6 +199,10 @@ class macpaperService: NSObject, ObservableObject {
         print("unsupported file format: \(ext)")
         return
     }
+
+    DispatchQueue.main.async {
+        self.selected_wp = wallpaper
+    }
     
     if current_wp != nil {
         _unset_wp { [weak self] in
@@ -225,6 +234,10 @@ class macpaperService: NSObject, ObservableObject {
     }
 
     private func _unset_wp(completion: @escaping () -> Void) {
+    DispatchQueue.main.async {
+        self.selected_wp = nil
+    }
+
     current_wp = nil
     wp_is_agent = false
     
@@ -257,6 +270,7 @@ class macpaperService: NSObject, ObservableObject {
 }
     
     func unset_wp() {
+        selected_wp = nil
         _unset_wp {
         }
     }
@@ -318,7 +332,7 @@ class macpaperService: NSObject, ObservableObject {
     }
 }
 
-struct endup_wp: Identifiable {
+struct endup_wp: Identifiable, Equatable {
     let id: UUID
     let name: String
     let path: String

@@ -130,6 +130,7 @@ echo "adding app resources"
 cp ../artwork/icns/macpaper.icns "$RSC_DIR"
 cp ../artwork/png/tear.png "${RSC_DIR}/.macpaper_tear.png"
 cp ./updater.sh "${RSC_DIR}/.updater.sh"
+cp ../artwork/png/kofi_symbol.png build/macpaper.app/Contents/Resources/.kofi.png
 
 echo "adding localization strings"
 cp -r ../lang/*.lproj "$RSC_DIR"

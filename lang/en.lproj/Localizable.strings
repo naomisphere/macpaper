@@ -25,7 +25,15 @@
 "sb_perst_enabled" = "Persistence Enabled";
 "sb_enable_perst" = "Enable Persistence";
 "sb_unset_wp" = "Unset Live Wallpaper";
+"sb_show_all" = "Show All...";
+"sb_refresh" = "Refresh";
 "sb_open_mgr" = "Open Manager";
+"sb_settings" = "Settings";
+"sb_about" = "About macpaper";
+"sb_about_text" = "Version %@ (%@)\n\nThe Wallpaper Manager for macOS";
+"sb_about_github" = "GitHub";
+"sb_about_kofi" = "Support on Ko-fi";
+"sb_perst_tooltip" = "Automatically start wallpaper on login";
 "sb_quit" = "Quit macpaper";
 
 "mgr_settings" = "settings";
@@ -49,6 +57,26 @@
 "browse_provider" = "Sources";
 "browse_wallhaven" = "Wallhaven";
 "browse_local" = "Local Library";
+"browse_resolution" = "Resolution";
+"filter_resolution_all" = "All";
+"browse_download" = "Download Wallpaper";
+"export_wallpaper" = "Export Wallpaper";
+"export_error" = "Export Failed";
+"export_original" = "Original Size";
+"export_iphone_header" = "iPhone";
+"export_iphone_15_pro_max" = "iPhone 15 Pro Max (1290×2796)";
+"export_iphone_15_pro" = "iPhone 15 Pro (1179×2556)";
+"export_iphone_14_pro" = "iPhone 14 Pro (1179×2556)";
+"export_iphone_13_pro" = "iPhone 13 Pro (1170×2532)";
+"export_iphone_se" = "iPhone SE (750×1334)";
+"export_ipad_header" = "iPad";
+"export_ipad_pro_12" = "iPad Pro 12.9\" (2732×2048)";
+"export_ipad_pro_11" = "iPad Pro 11\" (2388×1668)";
+"export_desktop_header" = "Desktop";
+"export_4k" = "4K UHD (3840×2160)";
+"export_1440p" = "1440p (2560×1440)";
+"export_1080p" = "1080p (1920×1080)";
+"export_ultrawide" = "Ultrawide 21:9 (3440×1440)";
 
 "sort_date" = "Date Added";
 "sort_relevance" = "Relevance";
@@ -65,9 +93,18 @@
 "category_all" = "All";
 
 "settings_general" = "General";
+"settings_startup" = "Startup";
+"settings_auto_start" = "Start at Login";
+"settings_auto_start_desc" = "Automatically start macpaper when you log in";
 "settings_updates" = "Updates";
 "settings_check_updates" = "Check for Updates";
 "settings_check_updates_desc" = "Check for updates on startup";
+"settings_export" = "Export";
+"settings_export_folder" = "Export Folder";
+"settings_export_folder_desc" = "Choose where exported wallpapers are saved";
+"settings_export_folder_default" = "Pictures folder";
+"settings_choose_folder" = "Choose Folder";
+"settings_reset_folder" = "Reset";
 
 "settings_manager" = "Manager";
 "settings_playback" = "Playback";
@@ -86,3 +123,15 @@
 "settings_add_api_key" = "Add API Key";
 "settings_change_api_key" = "Change";
 "settings_invalid_api_key" = "Invalid API key";
+
+"download_options_title" = "Download Options";
+"download_original" = "Download Original";
+"download_custom_ratio" = "Custom Aspect Ratio";
+"download_custom_title" = "Custom Download";
+"download_custom_desc" = "Choose a device to crop the image";
+"crop_editor_title" = "Crop Image";
+"crop_zoom" = "Zoom";
+"crop_apply" = "Apply";
+"settings_change_folder" = "Change Folder";
+"settings_select_folder" = "Select Folder";
+"export_aspect_ratio" = "Aspect Ratio";

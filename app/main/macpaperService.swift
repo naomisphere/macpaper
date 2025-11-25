@@ -19,6 +19,8 @@ class macpaperService: NSObject, ObservableObject {
     .appendingPathComponent(".local/share/paper/wallpaper")
     private let settings_file = FileManager.default.homeDirectoryForCurrentUser
     .appendingPathComponent(".local/share/macpaper/settings.json")
+    private let export_folder_file = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent(".local/share/macpaper/export_folder")
     
     override init() {
         let app_path = Bundle.main.bundlePath
@@ -99,7 +101,7 @@ class macpaperService: NSObject, ObservableObject {
     DispatchQueue.global(qos: .background).async { [weak self] in
         guard let self = self else { return }
         do {
-            let files = try FileManager.default.contentsOfDirectory(at: self.wp_storage_dir, includingPropertiesForKeys: [.creationDateKey, .fileSizeKey])
+            let files = try FileManager.default.contentsOfDirectory(at: self.wp_storage_dir, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey])
             
             let possible_wp_obj = files.filter { url in
                 let ext = url.pathExtension.lowercased()
@@ -107,9 +109,29 @@ class macpaperService: NSObject, ObservableObject {
             }
                 
                 let items = possible_wp_obj.compactMap { url -> endup_wp? in
-                    guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-                        let createdDate = attributes[.creationDate] as? Date,
-                        let fileSize = attributes[.size] as? Int64 else {
+                    let resourceValues = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+                    
+                    let modificationDate: Date?
+                    if let date = resourceValues?.contentModificationDate {
+                        modificationDate = date
+                    } else if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+                              let date = attrs[.modificationDate] as? Date {
+                        modificationDate = date
+                    } else {
+                        modificationDate = nil
+                    }
+                    
+                    let fileSize: Int64?
+                    if let size = resourceValues?.fileSize {
+                        fileSize = Int64(size)
+                    } else if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+                              let size = attrs[.size] as? Int64 {
+                        fileSize = size
+                    } else {
+                        fileSize = nil
+                    }
+                    
+                    guard let modificationDate = modificationDate, let fileSize = fileSize else {
                         return nil
                     }
                     
@@ -118,7 +140,7 @@ class macpaperService: NSObject, ObservableObject {
                         name: url.deletingPathExtension().lastPathComponent,
                         path: url.path,
                         preview: nil,
-                        createdDate: createdDate,
+                        createdDate: modificationDate,
                         fileSize: fileSize
                     )
                 }
@@ -312,6 +334,25 @@ class macpaperService: NSObject, ObservableObject {
         }
     }
      
+    func getExportFolder() -> URL {
+        if FileManager.default.fileExists(atPath: export_folder_file.path) {
+            do {
+                let path = try String(contentsOf: export_folder_file).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !path.isEmpty {
+                    return URL(fileURLWithPath: path)
+                }
+            } catch {
+                print("while reading export folder: \(error)")
+            }
+        }
+        
+        if let picturesURL = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first {
+            return picturesURL
+        }
+        
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Pictures")
+    }
+    
     private func _exec(_ arguments: [String], completion: @escaping (Bool) -> Void) {
         DispatchQueue.global(qos: .background).async {
             let task = Process()

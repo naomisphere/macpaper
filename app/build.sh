@@ -48,28 +48,28 @@ echo "compiled macpaper (universal)"
 rm "$MACOS_DIR/macpaper_amd64" "$MACOS_DIR/macpaper_arm64"
 echo ""
 
-# compile glasswp
-swiftc \
-    -target x86_64-apple-macos12.0 \
-    -framework AppKit -framework AVFoundation \
-    ../glasswp/glasswp.swift \
-    -o "build/macpaper.app/Contents/MacOS/glasswp_amd64"
-
-echo "compiled glasswp (amd64)"
-
-swiftc \
-    -target arm64-apple-macos12.0 \
-    -framework AppKit -framework AVFoundation \
-    ../glasswp/glasswp.swift \
-    -o "build/macpaper.app/Contents/MacOS/glasswp_arm64"
-
-echo "compiled glasswp (arm64)"
-    
-lipo -create "$MACOS_DIR/glasswp_amd64" "$MACOS_DIR/glasswp_arm64" -o "$MACOS_DIR/macpaper Wallpaper Service (glasswp)"
-
-echo "compiled glasswp (universal)"
-rm "$MACOS_DIR/glasswp_amd64" "$MACOS_DIR/glasswp_arm64"
-echo ""
+# compile glasswp (disabled - functionality is in macpaper.swift)
+# swiftc \
+#     -target x86_64-apple-macos12.0 \
+#     -framework AppKit -framework AVFoundation \
+#     ../glasswp/glasswp.swift \
+#     -o "build/macpaper.app/Contents/MacOS/glasswp_amd64"
+#
+# echo "compiled glasswp (amd64)"
+#
+# swiftc \
+#     -target arm64-apple-macos12.0 \
+#     -framework AppKit -framework AVFoundation \
+#     ../glasswp/glasswp.swift \
+#     -o "build/macpaper.app/Contents/MacOS/glasswp_arm64"
+#
+# echo "compiled glasswp (arm64)"
+#     
+# lipo -create "$MACOS_DIR/glasswp_amd64" "$MACOS_DIR/glasswp_arm64" -o "$MACOS_DIR/macpaper Wallpaper Service (glasswp)"
+#
+# echo "compiled glasswp (universal)"
+# rm "$MACOS_DIR/glasswp_amd64" "$MACOS_DIR/glasswp_arm64"
+# echo ""
 
 # compile macpaper-bin
 gcc -target x86_64-apple-macos12.0 \
@@ -129,8 +129,9 @@ EOF
 echo "adding app resources"
 cp ../artwork/icns/macpaper.icns "$RSC_DIR"
 cp ../artwork/png/tear.png "${RSC_DIR}/.macpaper_tear.png"
+cp ../artwork/png/tear.png "${RSC_DIR}/StatusBarIcon.png"
 cp ./updater.sh "${RSC_DIR}/.updater.sh"
-cp ../img/png/kofi_symbol.png build/macpaper.app/Contents/Resources/.kofi.png
+cp ../img/png/kofi_symbol.png build/macpaper.app/Contents/Resources/.kofi.png 2>/dev/null || true
 
 echo "adding localization strings"
 cp -r ../lang/*.lproj "$RSC_DIR"

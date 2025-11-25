@@ -11,7 +11,7 @@ struct macpaper: App {
         WindowGroup("Settings") {
             SettingsView()
                 .environmentObject(macpaperService())
-                .frame(minWidth: 400, minHeight: 500)
+                .frame(minWidth: 550, idealWidth: 600, minHeight: 500, idealHeight: 550)
         }
         .windowStyle(DefaultWindowStyle())
     }
@@ -54,7 +54,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         status_item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = status_item?.button {
-            button.image = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: "macpaper")
+            if let resourcePath = Bundle.main.path(forResource: "StatusBarIcon", ofType: "png"),
+               let iconImage = NSImage(contentsOfFile: resourcePath) {
+                iconImage.size = NSSize(width: 18, height: 18)
+                iconImage.isTemplate = false
+                button.image = iconImage
+            } else {
+                button.image = NSImage(systemSymbolName: "drop.fill", accessibilityDescription: "macpaper")
+            }
         }
         
         status_item?.menu = sb_item_menu()
@@ -103,11 +110,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.contentView?.layer?.masksToBounds = false
         }
         
+        window.minSize = NSSize(width: 900, height: 600)
         window.delegate = self
         _mwin = window
     }
 
     _mwin?.makeKeyAndOrderFront(nil)
+    NSApp.setActivationPolicy(.regular)
     NSApp.activate(ignoringOtherApps: true)
     _mwin_open = true
 }
@@ -137,6 +146,7 @@ struct glassObj: View {
     func close_manager() {
         _mwin?.close()
         _mwin_open = false
+        NSApp.setActivationPolicy(.accessory)
     }
 
     func show_mwin() {
@@ -144,71 +154,88 @@ struct glassObj: View {
     }
     
     func sb_item_menu() -> NSMenu {
-    let menu = NSMenu()
-    let service = macpaperService()
-    
-    let home = FileManager.default.homeDirectoryForCurrentUser
-    let current_wp = home.appendingPathComponent(".local/share/macpaper/current_wallpaper")
-    var wallpaper_is_set = false
-    var _wp: String?
-    
-    if FileManager.default.fileExists(atPath: current_wp.path) {
-        if let currentPath = try? String(contentsOf: current_wp).trimmingCharacters(in: .whitespacesAndNewlines) {
-            wallpaper_is_set = FileManager.default.fileExists(atPath: currentPath)
-            _wp = currentPath
+        let menu = NSMenu()
+        let service = macpaperService()
+        
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let current_wp = home.appendingPathComponent(".local/share/macpaper/current_wallpaper")
+        var wallpaper_is_set = false
+        var _wp: String?
+        
+        if FileManager.default.fileExists(atPath: current_wp.path) {
+            if let currentPath = try? String(contentsOf: current_wp).trimmingCharacters(in: .whitespacesAndNewlines) {
+                wallpaper_is_set = FileManager.default.fileExists(atPath: currentPath)
+                _wp = currentPath
+            }
         }
-    }
-    
-    let wp_storage_dir = home.appendingPathComponent(".local/share/paper/wallpaper")
-    var wallpapers: [endup_wp] = []
-    
-    if FileManager.default.fileExists(atPath: wp_storage_dir.path) {
-        do {
-            let files = try FileManager.default.contentsOfDirectory(at: wp_storage_dir, includingPropertiesForKeys: [.creationDateKey, .fileSizeKey])
-            
-            wallpapers = files.filter { url in
-                let ext = url.pathExtension.lowercased()
-                return ["mov", "mp4", "gif", "jpg", "jpeg", "png"].contains(ext)
-            }.compactMap { url -> endup_wp? in
-                guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-                      let createdDate = attrs[.creationDate] as? Date,
-                      let fileSize = attrs[.size] as? Int64 else {
-                    return nil
+        
+        let wp_storage_dir = home.appendingPathComponent(".local/share/paper/wallpaper")
+        var wallpapers: [endup_wp] = []
+        
+        if FileManager.default.fileExists(atPath: wp_storage_dir.path) {
+            do {
+                let files = try FileManager.default.contentsOfDirectory(at: wp_storage_dir, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey])
+                
+                let filteredFiles = files.filter { url in
+                    let ext = url.pathExtension.lowercased()
+                    return ["mov", "mp4", "gif", "jpg", "jpeg", "png"].contains(ext)
                 }
                 
-                return endup_wp(
-                    id: UUID(),
-                    name: url.deletingPathExtension().lastPathComponent,
-                    path: url.path,
-                    preview: nil,
-                    createdDate: createdDate,
-                    fileSize: fileSize
-                )
-            }.sorted { $0.createdDate > $1.createdDate }
-        } catch {
-            print(error)
+                wallpapers = filteredFiles.compactMap { url -> endup_wp? in
+                    let resourceValues = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+                    
+                    let modificationDate: Date?
+                    if let date = resourceValues?.contentModificationDate {
+                        modificationDate = date
+                    } else if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+                              let date = attrs[.modificationDate] as? Date {
+                        modificationDate = date
+                    } else {
+                        modificationDate = nil
+                    }
+                    
+                    let fileSize: Int64?
+                    if let size = resourceValues?.fileSize {
+                        fileSize = Int64(size)
+                    } else if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+                              let size = attrs[.size] as? Int64 {
+                        fileSize = size
+                    } else {
+                        fileSize = nil
+                    }
+                    
+                    guard let modificationDate = modificationDate, let fileSize = fileSize else {
+                        return nil
+                    }
+                    
+                    return endup_wp(
+                        id: UUID(),
+                        name: url.deletingPathExtension().lastPathComponent,
+                        path: url.path,
+                        preview: nil,
+                        createdDate: modificationDate,
+                        fileSize: fileSize
+                    )
+                }.sorted { $0.createdDate > $1.createdDate }
+            } catch {
+                print(error)
+            }
         }
-    }
         
-        if wallpapers.isEmpty {
-            let __no_wp_item = NSMenuItem(
-                title: NSLocalizedString("sb_no_wallpapers", comment: "No wallpapers found"),
-                action: nil,
-                keyEquivalent: ""
-            )
-            __no_wp_item.isEnabled = false
-            menu.addItem(__no_wp_item)
-        } else {
-            let __wp_header = NSMenuItem(
-                title: NSLocalizedString("sb_wallpapers", comment: "Wallpapers"),
-                action: nil,
-                keyEquivalent: ""
-            )
-            __wp_header.isEnabled = false
-            menu.addItem(__wp_header)
-            menu.addItem(NSMenuItem.separator())
+        let openItem = NSMenuItem(
+            title: NSLocalizedString("sb_open_mgr", comment: "Open Manager"),
+            action: #selector(show_manager),
+            keyEquivalent: "o"
+        )
+        openItem.target = self
+        menu.addItem(openItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        if !wallpapers.isEmpty {
+            let wpSubmenu = NSMenu()
             
-            for wallpaper in wallpapers.prefix(10) {
+            for wallpaper in wallpapers.prefix(8) {
                 let item = NSMenuItem(
                     title: wallpaper.name,
                     action: #selector(apply_wp(_:)),
@@ -221,69 +248,95 @@ struct glassObj: View {
                     item.state = .on
                 }
                 
-                menu.addItem(item)
+                wpSubmenu.addItem(item)
             }
             
-            if wallpapers.count > 10 {
-                let moreItem = NSMenuItem(
-                    // title: "\(wallpapers.count - 10) more...",
-                    title: String(format: NSLocalizedString("sb_large_count", comment: "more items count"), wallpapers.count - 10),
+            if wallpapers.count > 8 {
+                wpSubmenu.addItem(NSMenuItem.separator())
+                let showAllItem = NSMenuItem(
+                    title: NSLocalizedString("sb_show_all", comment: "Show All..."),
                     action: #selector(open_manager),
                     keyEquivalent: ""
                 )
-                moreItem.target = self
-                menu.addItem(moreItem)
+                showAllItem.target = self
+                wpSubmenu.addItem(showAllItem)
             }
+            
+            let wpMenuItem = NSMenuItem(
+                title: NSLocalizedString("sb_wallpapers", comment: "Wallpapers"),
+                action: nil,
+                keyEquivalent: ""
+            )
+            wpMenuItem.submenu = wpSubmenu
+            menu.addItem(wpMenuItem)
+        } else {
+            let noWpItem = NSMenuItem(
+                title: NSLocalizedString("sb_no_wallpapers", comment: "No wallpapers found"),
+                action: nil,
+                keyEquivalent: ""
+            )
+            noWpItem.isEnabled = false
+            menu.addItem(noWpItem)
         }
         
         menu.addItem(NSMenuItem.separator())
         
-        let __volumeitem = NSMenuItem()
-        let ___volume_view = NSHostingView(rootView: MiniVolumeSlider(volume: service.volume))
-        ___volume_view.frame = NSRect(x: 0, y: 0, width: 200, height: 30)
-        __volumeitem.view = ___volume_view
-        menu.addItem(__volumeitem)
+        let volumeItem = NSMenuItem()
+        let volumeView = NSHostingView(rootView: MiniVolumeSlider(volume: service.volume))
+        volumeView.frame = NSRect(x: 0, y: 0, width: 200, height: 30)
+        volumeItem.view = volumeView
+        menu.addItem(volumeItem)
         
         menu.addItem(NSMenuItem.separator())
         
         let launchAgent = home.appendingPathComponent("Library/LaunchAgents/com.naomisphere.macpaper.wallpaper.plist")
         let is_agent_enabled = FileManager.default.fileExists(atPath: launchAgent.path)
         
-        let __persist_item = NSMenuItem(
-            title: is_agent_enabled ? NSLocalizedString("sb_perst_enabled", comment: "Persistence Enabled") : NSLocalizedString("sb_enable_perst", comment: "Enable Persistence"),
+        let persistItem = NSMenuItem(
+            title: NSLocalizedString("sb_perst_tooltip", comment: "Auto-start wallpaper"),
             action: #selector(toggle_launchAgent),
-            keyEquivalent: "p"
+            keyEquivalent: ""
         )
-        __persist_item.target = self
-        __persist_item.state = is_agent_enabled ? .on : .off
-        menu.addItem(__persist_item)
+        persistItem.target = self
+        persistItem.state = is_agent_enabled ? .on : .off
+        menu.addItem(persistItem)
         
         if wallpaper_is_set {
-            let __unsetitem = NSMenuItem(
+            let unsetItem = NSMenuItem(
                 title: NSLocalizedString("sb_unset_wp", comment: "Unset Wallpaper"),
                 action: #selector(unset_wp),
-                keyEquivalent: "u"
+                keyEquivalent: ""
             )
-            __unsetitem.target = self
-            menu.addItem(__unsetitem)
+            unsetItem.target = self
+            menu.addItem(unsetItem)
         }
         
         menu.addItem(NSMenuItem.separator())
         
-        let __openmanageritem = NSMenuItem(
-            title: NSLocalizedString("sb_open_mgr", comment: "Open Manager"),
-            action: #selector(show_manager),
-            keyEquivalent: "o"
+        let settingsItem = NSMenuItem(
+            title: NSLocalizedString("sb_settings", comment: "Settings"),
+            action: #selector(show_settings),
+            keyEquivalent: ","
         )
-        __openmanageritem.target = self
-        menu.addItem(__openmanageritem)
+        settingsItem.target = self
+        menu.addItem(settingsItem)
         
-        let __quititem = NSMenuItem(
+        let aboutItem = NSMenuItem(
+            title: NSLocalizedString("sb_about", comment: "About macpaper"),
+            action: #selector(show_about),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
+        menu.addItem(aboutItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        let quitItem = NSMenuItem(
             title: NSLocalizedString("sb_quit", comment: "Quit macpaper"),
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
-        menu.addItem(__quititem)
+        menu.addItem(quitItem)
         
         return menu
     }
@@ -322,6 +375,70 @@ struct glassObj: View {
         show_mwin()
     }
     
+    @objc func show_settings() {
+        let settingsView = SettingsView()
+            .environmentObject(macpaperService())
+        
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 500),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        if let managerWindow = _mwin {
+            let managerFrame = managerWindow.frame
+            let settingsSize = window.frame.size
+            
+            let x = managerFrame.midX - settingsSize.width / 2
+            let y = managerFrame.midY - settingsSize.height / 2
+            
+            window.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            window.center()
+        }
+        
+        window.title = NSLocalizedString("settings", comment: "Settings")
+        window.titleVisibility = .hidden
+        window.contentView = NSHostingView(rootView: settingsView)
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    @objc func refresh_wallpapers() {
+        let service = macpaperService()
+        service.fetch_wallpapers()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.status_item?.menu = self.sb_item_menu()
+        }
+    }
+    
+    @objc func show_about() {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
+        
+        let alert = NSAlert()
+        alert.messageText = "macpaper"
+        alert.informativeText = String(format: NSLocalizedString("sb_about_text", comment: "Version %@ (%@)\n\nThe Wallpaper Manager for macOS"), version, build)
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: NSLocalizedString("sb_about_github", comment: "GitHub"))
+        alert.addButton(withTitle: NSLocalizedString("sb_about_kofi", comment: "Support on Ko-fi"))
+        alert.addButton(withTitle: NSLocalizedString("browse_cancel", comment: "OK"))
+        
+        let response = alert.runModal()
+        
+        if response == .alertFirstButtonReturn {
+            if let url = URL(string: "https://github.com/naomisphere/macpaper") {
+                NSWorkspace.shared.open(url)
+            }
+        } else if response == .alertSecondButtonReturn {
+            if let url = URL(string: "https://ko-fi.com/naomisphere") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+    
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
@@ -331,7 +448,21 @@ extension AppDelegate: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         if let closingWindow = notification.object as? NSWindow, closingWindow == _mwin {
             _mwin_open = false
+            NSApp.setActivationPolicy(.accessory)
         }
+    }
+    
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        if sender == _mwin {
+            let minWidth: CGFloat = 900
+            let minHeight: CGFloat = 600
+            
+            let constrainedWidth = max(frameSize.width, minWidth)
+            let constrainedHeight = max(frameSize.height, minHeight)
+            
+            return NSSize(width: constrainedWidth, height: constrainedHeight)
+        }
+        return frameSize
     }
 }
 

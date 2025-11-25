@@ -25,7 +25,15 @@
 "sb_perst_enabled" = "Persistência Ativada";
 "sb_enable_perst" = "Ativar Persistência";
 "sb_unset_wp" = "Desativar Papel de Parede Animado";
+"sb_show_all" = "Mostrar Tudo...";
+"sb_refresh" = "Atualizar";
 "sb_open_mgr" = "Abrir Gerenciador";
+"sb_settings" = "Configurações";
+"sb_about" = "Sobre macpaper";
+"sb_about_text" = "Versão %@ (%@)\n\nO Gerenciador de Papéis de Parede para macOS";
+"sb_about_github" = "GitHub";
+"sb_about_kofi" = "Apoiar no Ko-fi";
+"sb_perst_tooltip" = "Iniciar papel de parede automaticamente ao fazer login";
 "sb_quit" = "Encerrar macpaper";
 
 "mgr_settings" = "configurações";
@@ -49,6 +57,26 @@
 "browse_provider" = "Fontes";
 "browse_wallhaven" = "Wallhaven";
 "browse_local" = "Biblioteca Local";
+"browse_resolution" = "Resolução";
+"filter_resolution_all" = "Todas";
+"browse_download" = "Baixar Papel de Parede";
+"export_wallpaper" = "Exportar Papel de Parede";
+"export_error" = "Erro ao exportar";
+"export_original" = "Tamanho Original";
+"export_iphone_header" = "iPhone";
+"export_iphone_15_pro_max" = "iPhone 15 Pro Max (1290×2796)";
+"export_iphone_15_pro" = "iPhone 15 Pro (1179×2556)";
+"export_iphone_14_pro" = "iPhone 14 Pro (1179×2556)";
+"export_iphone_13_pro" = "iPhone 13 Pro (1170×2532)";
+"export_iphone_se" = "iPhone SE (750×1334)";
+"export_ipad_header" = "iPad";
+"export_ipad_pro_12" = "iPad Pro 12.9\" (2732×2048)";
+"export_ipad_pro_11" = "iPad Pro 11\" (2388×1668)";
+"export_desktop_header" = "Desktop";
+"export_4k" = "4K UHD (3840×2160)";
+"export_1440p" = "1440p (2560×1440)";
+"export_1080p" = "1080p (1920×1080)";
+"export_ultrawide" = "Ultrawide 21:9 (3440×1440)";
 
 "sort_date" = "Data de Adição";
 "sort_relevance" = "Relevância";
@@ -64,6 +92,15 @@
 "category_people" = "Pessoas";
 "category_all" = "Todas";
 
+"settings_startup" = "Inicialização";
+"settings_auto_start" = "Iniciar ao Fazer Login";
+"settings_auto_start_desc" = "Iniciar macpaper automaticamente ao fazer login";
+"settings_export" = "Exportar";
+"settings_export_folder" = "Pasta de Exportação";
+"settings_export_folder_desc" = "Escolha onde os papéis de parede exportados são salvos";
+"settings_export_folder_default" = "Pasta de Imagens";
+"settings_choose_folder" = "Escolher Pasta";
+"settings_reset_folder" = "Redefinir";
 "settings_api_key" = "Chave Api de Wallhaven";
 "settings_api_key_description" = "Experimental. Limpe se causar problemas.";
 "settings_enter_api_key" = "Insira a Chave de API";
@@ -74,3 +111,15 @@
 "settings_add_api_key" = "Adicionar Chave de API";
 "settings_change_api_key" = "Alterar";
 "settings_invalid_api_key" = "Chave de API inválida";
+
+"download_options_title" = "Opções de download";
+"download_original" = "Baixar original";
+"download_custom_ratio" = "Proporção personalizada";
+"download_custom_title" = "Download personalizado";
+"download_custom_desc" = "Escolha um dispositivo para cortar a imagem";
+"crop_editor_title" = "Cortar imagem";
+"crop_zoom" = "Zoom";
+"crop_apply" = "Aplicar";
+"settings_change_folder" = "Alterar pasta";
+"settings_select_folder" = "Selecionar pasta";
+"export_aspect_ratio" = "Proporção";

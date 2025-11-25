@@ -25,7 +25,15 @@
 "sb_perst_enabled" = "Persistencia activada";
 "sb_enable_perst" = "Activar persistencia";
 "sb_unset_wp" = "Quitar fondo";
+"sb_show_all" = "Mostrar Todo...";
+"sb_refresh" = "Actualizar";
 "sb_open_mgr" = "Abrir app";
+"sb_settings" = "Ajustes";
+"sb_about" = "Acerca de macpaper";
+"sb_about_text" = "Versión %@ (%@)\n\nEl Gestor de Fondos para macOS";
+"sb_about_github" = "GitHub";
+"sb_about_kofi" = "Apoyar en Ko-fi";
+"sb_perst_tooltip" = "Iniciar fondo automáticamente al iniciar sesión";
 "sb_quit" = "Salir de macpaper";
 
 "mgr_settings" = "ajustes";
@@ -47,6 +55,26 @@
 "browse_provider" = "Fuentes";
 "browse_wallhaven" = "Wallhaven";
 "browse_local" = "Biblioteca Local";
+"browse_resolution" = "Resolución";
+"filter_resolution_all" = "Todas";
+"browse_download" = "Descargar Fondo";
+"export_wallpaper" = "Exportar Fondo";
+"export_error" = "Error al exportar";
+"export_original" = "Tamaño Original";
+"export_iphone_header" = "iPhone";
+"export_iphone_15_pro_max" = "iPhone 15 Pro Max (1290×2796)";
+"export_iphone_15_pro" = "iPhone 15 Pro (1179×2556)";
+"export_iphone_14_pro" = "iPhone 14 Pro (1179×2556)";
+"export_iphone_13_pro" = "iPhone 13 Pro (1170×2532)";
+"export_iphone_se" = "iPhone SE (750×1334)";
+"export_ipad_header" = "iPad";
+"export_ipad_pro_12" = "iPad Pro 12.9\" (2732×2048)";
+"export_ipad_pro_11" = "iPad Pro 11\" (2388×1668)";
+"export_desktop_header" = "Escritorio";
+"export_4k" = "4K UHD (3840×2160)";
+"export_1440p" = "1440p (2560×1440)";
+"export_1080p" = "1080p (1920×1080)";
+"export_ultrawide" = "Ultrawide 21:9 (3440×1440)";
 
 "sort_date" = "Fecha de agregado";
 "sort_relevance" = "Relevancia";
@@ -63,9 +91,18 @@
 "category_all" = "Todos";
 
 "settings_general" = "General";
+"settings_startup" = "Inicio";
+"settings_auto_start" = "Iniciar al iniciar sesión";
+"settings_auto_start_desc" = "Iniciar macpaper automáticamente al iniciar sesión";
 "settings_updates" = "Actualizaciones";
 "settings_check_updates" = "Buscar actualizaciones";
 "settings_check_updates_desc" = "Buscar actualizaciones al iniciar";
+"settings_export" = "Exportar";
+"settings_export_folder" = "Carpeta de Exportación";
+"settings_export_folder_desc" = "Elija dónde se guardan los fondos exportados";
+"settings_export_folder_default" = "Carpeta de Imágenes";
+"settings_choose_folder" = "Elegir Carpeta";
+"settings_reset_folder" = "Restablecer";
 
 "settings_manager" = "Gestor";
 "settings_playback" = "Reproducción";
@@ -84,3 +121,15 @@
 "settings_add_api_key" = "Añadir clave de API";
 "settings_change_api_key" = "Change";
 "settings_invalid_api_key" = "Clave de API invalida";
+
+"download_options_title" = "Opciones de descarga";
+"download_original" = "Descargar original";
+"download_custom_ratio" = "Proporción personalizada";
+"download_custom_title" = "Descarga personalizada";
+"download_custom_desc" = "Elige un dispositivo para recortar la imagen";
+"crop_editor_title" = "Recortar imagen";
+"crop_zoom" = "Zoom";
+"crop_apply" = "Aplicar";
+"settings_change_folder" = "Cambiar carpeta";
+"settings_select_folder" = "Seleccionar carpeta";
+"export_aspect_ratio" = "Relación de aspecto";

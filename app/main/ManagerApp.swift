@@ -385,6 +385,9 @@ private func findButton(with title: String, in view: NSView) -> NSButton? {
                         },
                         onRename: { newName in
                             rename_wp(wallpaper, to: newName)
+                        },
+                        onExport: {
+                            export_wp(wallpaper)
                         }
                     )
                     .environmentObject(service)
@@ -447,7 +450,7 @@ private func findButton(with title: String, in view: NSView) -> NSButton? {
             try FileManager.default.removeItem(atPath: wallpaper.path)
             service.fetch_wallpapers()
         } catch {
-            print(error)
+            print("while deleting wallpaper: \(error)")
         }
     }
     
@@ -464,6 +467,286 @@ private func findButton(with title: String, in view: NSView) -> NSButton? {
         } catch {
             print("Error renaming file: \(error)")
         }
+    }
+    
+    private func export_wp(_ wallpaper: endup_wp) {
+        let sourceURL = URL(fileURLWithPath: wallpaper.path)
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+            print("export error: source file does not exist")
+            return
+        }
+        
+        let fileExtension = sourceURL.pathExtension.lowercased()
+        let isImage = ["jpg", "jpeg", "png", "gif"].contains(fileExtension)
+        
+        if isImage {
+            showExportOptions(for: wallpaper, sourceURL: sourceURL)
+        } else {
+            exportDirectly(sourceURL: sourceURL, wallpaper: wallpaper)
+        }
+    }
+    
+    private func showExportOptions(for wallpaper: endup_wp, sourceURL: URL) {
+        let menu = NSMenu()
+        
+        menu.addItem(NSMenuItem(title: NSLocalizedString("export_original", comment: "Original Size"), action: #selector(ExportOptionsHandler.exportOriginal), keyEquivalent: ""))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: NSLocalizedString("download_custom_ratio", comment: "Custom Aspect Ratio"), action: #selector(ExportOptionsHandler.exportCustom), keyEquivalent: ""))
+        
+        let handler = ExportOptionsHandler(
+            wallpaper: wallpaper,
+            sourceURL: sourceURL,
+            exportOriginal: {
+                self.exportDirectly(sourceURL: sourceURL, wallpaper: wallpaper)
+            },
+            exportCustom: {
+                guard let sourceImage = NSImage(contentsOfFile: sourceURL.path) else {
+                    print("export error: could not load image")
+                    return
+                }
+                self.showCropEditorWindow(image: sourceImage, wallpaper: wallpaper, sourceURL: sourceURL)
+            }
+        )
+        
+        menu.items.forEach { $0.target = handler }
+        
+        if NSApp.keyWindow != nil {
+            menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        }
+    }
+    
+    
+    func exportDirectly(sourceURL: URL, wallpaper: endup_wp) {
+        let fileExtension = sourceURL.pathExtension.lowercased()
+        var allowedTypes: [UTType] = []
+        
+        switch fileExtension {
+        case "jpg", "jpeg":
+            allowedTypes = [.jpeg]
+        case "png":
+            allowedTypes = [.png]
+        case "gif":
+            allowedTypes = [.gif]
+        case "mp4":
+            allowedTypes = [.mpeg4Movie]
+        case "mov":
+            allowedTypes = [.quickTimeMovie]
+        default:
+            allowedTypes = [.jpeg, .png, .gif, .mpeg4Movie, .quickTimeMovie]
+        }
+        
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = allowedTypes
+        savePanel.nameFieldStringValue = wallpaper.name
+        savePanel.title = NSLocalizedString("export_wallpaper", comment: "Export Wallpaper")
+        savePanel.directoryURL = service.getExportFolder()
+        
+        savePanel.begin { response in
+            if response == .OK, let destinationURL = savePanel.url {
+                do {
+                    if FileManager.default.fileExists(atPath: destinationURL.path) {
+                        try FileManager.default.removeItem(at: destinationURL)
+                    }
+                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                    print("exported wallpaper to: \(destinationURL.path)")
+                } catch {
+                    print("while exporting file: \(error)")
+                    DispatchQueue.main.async {
+                        let alert = NSAlert()
+                        alert.messageText = NSLocalizedString("export_error", comment: "Export Error")
+                        alert.informativeText = error.localizedDescription
+                        alert.alertStyle = .warning
+                        alert.addButton(withTitle: NSLocalizedString("browse_cancel", comment: "OK"))
+                        alert.runModal()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func showCropEditorWindow(image: NSImage, wallpaper: endup_wp, sourceURL: URL) {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        let cropView = CropEditorView(
+            image: image,
+            wallpaperName: wallpaper.name,
+            onCrop: { [weak window] cropRect, targetSize in
+                window?.close()
+                self.exportWithCrop(wallpaper: wallpaper, sourceURL: sourceURL, cropRect: cropRect, targetSize: targetSize)
+            },
+            onCancel: { [weak window] in
+                window?.close()
+            }
+        )
+        
+        window.center()
+        window.title = NSLocalizedString("crop_editor_title", comment: "Crop Image")
+        window.titleVisibility = .hidden
+        window.contentView = NSHostingView(rootView: cropView)
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    private func exportWithCrop(wallpaper: endup_wp, sourceURL: URL, cropRect: CGRect, targetSize: NSSize) {
+        guard let sourceImage = NSImage(contentsOfFile: sourceURL.path) else {
+            print("export error: could not load image")
+            return
+        }
+        
+        let croppedImage = cropImage(sourceImage, cropRect: cropRect, targetSize: targetSize)
+        
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.png, .jpeg]
+        savePanel.nameFieldStringValue = "\(wallpaper.name)_\(Int(targetSize.width))x\(Int(targetSize.height))"
+        savePanel.title = NSLocalizedString("export_wallpaper", comment: "Export Wallpaper")
+        savePanel.directoryURL = service.getExportFolder()
+        
+        let response = savePanel.runModal()
+        
+        guard response == .OK, let destinationURL = savePanel.url else {
+            return
+        }
+        
+        saveCroppedImage(croppedImage, to: destinationURL)
+    }
+    
+    private func cropImage(_ image: NSImage, cropRect: CGRect, targetSize: NSSize) -> NSImage {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return image
+        }
+        
+        guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
+            return image
+        }
+        
+        guard let context = CGContext(
+            data: nil,
+            width: Int(targetSize.width),
+            height: Int(targetSize.height),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return image
+        }
+        
+        context.interpolationQuality = .high
+        context.draw(croppedCGImage, in: CGRect(origin: .zero, size: targetSize))
+        
+        guard let finalCGImage = context.makeImage() else {
+            return image
+        }
+        
+        return NSImage(cgImage: finalCGImage, size: targetSize)
+    }
+    
+    private func saveCroppedImage(_ image: NSImage, to destinationURL: URL) {
+        guard let tiffData = image.tiffRepresentation,
+              let bitmapImage = NSBitmapImageRep(data: tiffData) else {
+            showExportError("could not convert image")
+            return
+        }
+        
+        let fileExtension = destinationURL.pathExtension.lowercased()
+        let imageData: Data?
+        
+        if fileExtension == "png" {
+            imageData = bitmapImage.representation(using: .png, properties: [:])
+        } else {
+            imageData = bitmapImage.representation(using: .jpeg, properties: [.compressionFactor: 0.95])
+        }
+        
+        guard let data = imageData else {
+            showExportError("could not create image data")
+            return
+        }
+        
+        do {
+            try data.write(to: destinationURL)
+            print("exported wallpaper to: \(destinationURL.path)")
+        } catch {
+            showExportError(error.localizedDescription)
+        }
+    }
+    
+    private func showExportError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString("export_error", comment: "Export Error")
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+    
+    private func resizeImageToFit(_ image: NSImage, targetSize: NSSize, cropRect: CGRect? = nil) -> NSImage {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return image
+        }
+        
+        let imageWidth = CGFloat(cgImage.width)
+        let imageHeight = CGFloat(cgImage.height)
+        let targetWidth = targetSize.width
+        let targetHeight = targetSize.height
+        
+        let finalCropRect: CGRect
+        
+        if let cropRect = cropRect {
+            finalCropRect = cropRect
+        } else {
+            let imageRatio = imageWidth / imageHeight
+            let targetRatio = targetWidth / targetHeight
+            
+            if imageRatio > targetRatio {
+                let cropHeight = imageWidth / targetRatio
+                finalCropRect = CGRect(
+                    x: 0,
+                    y: (imageHeight - cropHeight) / 2,
+                    width: imageWidth,
+                    height: cropHeight
+                )
+            } else {
+                let cropWidth = imageHeight * targetRatio
+                finalCropRect = CGRect(
+                    x: (imageWidth - cropWidth) / 2,
+                    y: 0,
+                    width: cropWidth,
+                    height: imageHeight
+                )
+            }
+        }
+        
+        guard let croppedCGImage = cgImage.cropping(to: finalCropRect) else {
+            return image
+        }
+        
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(
+            data: nil,
+            width: Int(targetWidth),
+            height: Int(targetHeight),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return image
+        }
+        
+        context.interpolationQuality = .high
+        context.draw(croppedCGImage, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        
+        guard let finalCGImage = context.makeImage() else {
+            return image
+        }
+        
+        return NSImage(cgImage: finalCGImage, size: targetSize)
     }
     
     private func isStillWallpaper(_ path: String) -> Bool {
@@ -716,6 +999,7 @@ struct WallpaperCard: View {
     let onTap: () -> Void
     let onDelete: () -> Void
     let onRename: (String) -> Void
+    let onExport: () -> Void
     
     @State private var isHovered = false
     @State private var isEditing = false
@@ -880,6 +1164,23 @@ struct WallpaperCard: View {
                                 .frame(width: 24, height: 24)
                                 .overlay {
                                     Image(systemName: "pencil")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.white)
+                                }
+                                .background {
+                                    Circle()
+                                        .fill(.regularMaterial)
+                                        .frame(width: 28, height: 28)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button(action: onExport) {
+                            Circle()
+                                .fill(.blue.opacity(0.9))
+                                .frame(width: 24, height: 24)
+                                .overlay {
+                                    Image(systemName: "arrow.down.circle")
                                         .font(.system(size: 10, weight: .medium))
                                         .foregroundStyle(.white)
                                 }
@@ -1169,7 +1470,7 @@ class ImageCache {
     
     private init() {
         cache.countLimit = 30
-        cache.totalCostLimit = 50 * 1024 * 1024 // 50 MB
+        cache.totalCostLimit = 50 * 1024 * 1024
     }
     
     func getImage(forKey key: String) -> NSImage? {
@@ -1183,5 +1484,450 @@ class ImageCache {
     
     func clear() {
         cache.removeAllObjects()
+    }
+}
+
+class ExportHandler: NSObject {
+    let wallpaper: endup_wp
+    let sourceURL: URL
+    let exportDirectly: (URL, endup_wp) -> Void
+    let exportWithRatio: (endup_wp, URL, NSSize) -> Void
+    
+    init(wallpaper: endup_wp, sourceURL: URL, exportDirectly: @escaping (URL, endup_wp) -> Void, exportWithRatio: @escaping (endup_wp, URL, NSSize) -> Void) {
+        self.wallpaper = wallpaper
+        self.sourceURL = sourceURL
+        self.exportDirectly = exportDirectly
+        self.exportWithRatio = exportWithRatio
+    }
+    
+    @objc func exportOriginal() {
+        exportDirectly(sourceURL, wallpaper)
+    }
+    
+    @objc func exportiPhone15ProMax() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1290, height: 2796))
+    }
+    
+    @objc func exportiPhone15Pro() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1179, height: 2556))
+    }
+    
+    @objc func exportiPhone14Pro() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1179, height: 2556))
+    }
+    
+    @objc func exportiPhone13Pro() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1170, height: 2532))
+    }
+    
+    @objc func exportiPhoneSE() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 750, height: 1334))
+    }
+    
+    @objc func exportiPadPro12() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 2732, height: 2048))
+    }
+    
+    @objc func exportiPadPro11() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 2388, height: 1668))
+    }
+    
+    @objc func export4K() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 3840, height: 2160))
+    }
+    
+    @objc func export1440p() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 2560, height: 1440))
+    }
+    
+    @objc func export1080p() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1920, height: 1080))
+    }
+    
+    @objc func exportUltrawide() {
+        exportWithRatio(wallpaper, sourceURL, NSSize(width: 3440, height: 1440))
+    }
+}
+
+struct CropEditorView: View {
+    let image: NSImage
+    let wallpaperName: String
+    let onCrop: (CGRect, CGSize) -> Void
+    let onCancel: () -> Void
+    
+    @State private var selectedRatioIndex: Int = 0
+    @State private var imageSize: CGSize = .zero
+    @State private var panOffset: CGSize = .zero
+    @State private var lastPanOffset: CGSize = .zero
+    @State private var zoomScale: CGFloat = 1.0
+    
+    struct RatioOption: Identifiable {
+        let id: String
+        let name: String
+        let size: CGSize
+        var aspectRatio: CGFloat { size.width / size.height }
+    }
+    
+    private let ratios: [RatioOption] = [
+        RatioOption(id: "iphone15promax", name: "iPhone 15 Pro Max", size: CGSize(width: 1290, height: 2796)),
+        RatioOption(id: "iphone15pro", name: "iPhone 15 Pro", size: CGSize(width: 1179, height: 2556)),
+        RatioOption(id: "iphone14pro", name: "iPhone 14 Pro", size: CGSize(width: 1179, height: 2556)),
+        RatioOption(id: "iphone13pro", name: "iPhone 13 Pro", size: CGSize(width: 1170, height: 2532)),
+        RatioOption(id: "iphonese", name: "iPhone SE", size: CGSize(width: 750, height: 1334)),
+        RatioOption(id: "ipadpro12", name: "iPad Pro 12.9\"", size: CGSize(width: 2732, height: 2048)),
+        RatioOption(id: "ipadpro11", name: "iPad Pro 11\"", size: CGSize(width: 2388, height: 1668)),
+        RatioOption(id: "4k", name: "4K UHD (3840×2160)", size: CGSize(width: 3840, height: 2160)),
+        RatioOption(id: "1440p", name: "1440p (2560×1440)", size: CGSize(width: 2560, height: 1440)),
+        RatioOption(id: "1080p", name: "1080p (1920×1080)", size: CGSize(width: 1920, height: 1080)),
+        RatioOption(id: "ultrawide", name: "Ultrawide 21:9", size: CGSize(width: 3440, height: 1440))
+    ]
+    
+    private var selectedRatio: RatioOption { ratios[selectedRatioIndex] }
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            VStack(spacing: 0) {
+                headerView
+                cropCanvas
+                controlsView
+            }
+            .frame(maxWidth: .infinity)
+            
+            Divider()
+            
+            ratioSidebar
+                .frame(width: 220)
+        }
+        .frame(minWidth: 900, minHeight: 650)
+        .onAppear {
+            loadImageSize()
+        }
+    }
+    
+    private var headerView: some View {
+        HStack {
+            Text(NSLocalizedString("crop_editor_title", comment: "Crop Image"))
+                .font(.system(size: 16, weight: .semibold))
+            Spacer()
+            Button(action: onCancel) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding()
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    private var cropCanvas: some View {
+        GeometryReader { geo in
+            let canvasSize = geo.size
+            let cropFrameSize = calculateCropFrameSize(in: canvasSize)
+            let imageDisplaySize = calculateImageDisplaySize(for: cropFrameSize)
+            let clampedOffset = clampOffset(imageSize: imageDisplaySize, cropSize: cropFrameSize)
+            
+            ZStack {
+                Color(NSColor.darkGray).opacity(0.3)
+                
+                ZStack {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: imageDisplaySize.width, height: imageDisplaySize.height)
+                        .offset(clampedOffset)
+                }
+                .frame(width: cropFrameSize.width, height: cropFrameSize.height)
+                .clipped()
+                .overlay(
+                    Rectangle()
+                        .stroke(Color.white, lineWidth: 2)
+                )
+                .overlay(cropGridOverlay(size: cropFrameSize))
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let newOffset = CGSize(
+                                width: lastPanOffset.width + value.translation.width,
+                                height: lastPanOffset.height + value.translation.height
+                            )
+                            panOffset = newOffset
+                        }
+                        .onEnded { _ in
+                            lastPanOffset = clampOffset(imageSize: imageDisplaySize, cropSize: cropFrameSize)
+                            panOffset = lastPanOffset
+                        }
+                )
+                
+                VStack {
+                    Spacer()
+                    HStack {
+                        Text("\(Int(selectedRatio.size.width)) × \(Int(selectedRatio.size.height))")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(4)
+                    }
+                    .padding(.bottom, 8)
+                }
+                .frame(width: cropFrameSize.width, height: cropFrameSize.height)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(20)
+    }
+    
+    private func cropGridOverlay(size: CGSize) -> some View {
+        ZStack {
+            Path { path in
+                path.move(to: CGPoint(x: size.width / 3, y: 0))
+                path.addLine(to: CGPoint(x: size.width / 3, y: size.height))
+                path.move(to: CGPoint(x: size.width * 2 / 3, y: 0))
+                path.addLine(to: CGPoint(x: size.width * 2 / 3, y: size.height))
+                path.move(to: CGPoint(x: 0, y: size.height / 3))
+                path.addLine(to: CGPoint(x: size.width, y: size.height / 3))
+                path.move(to: CGPoint(x: 0, y: size.height * 2 / 3))
+                path.addLine(to: CGPoint(x: size.width, y: size.height * 2 / 3))
+            }
+            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+        }
+    }
+    
+    private var controlsView: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 16) {
+                Text(NSLocalizedString("crop_zoom", comment: "Zoom"))
+                    .font(.system(size: 12))
+                    .frame(width: 40, alignment: .leading)
+                
+                Slider(value: $zoomScale, in: 1.0...3.0, step: 0.1)
+                    .frame(maxWidth: 300)
+                
+                Text(String(format: "%.1fx", zoomScale))
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .frame(width: 40)
+                
+                Button(action: resetCrop) {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            HStack(spacing: 12) {
+                Button(action: onCancel) {
+                    Text(NSLocalizedString("browse_cancel", comment: "Cancel"))
+                        .frame(width: 100)
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.escape)
+                
+                Button(action: performCrop) {
+                    Text(NSLocalizedString("crop_apply", comment: "Apply"))
+                        .frame(width: 100)
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.return)
+            }
+        }
+        .padding()
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    private var ratioSidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(NSLocalizedString("export_aspect_ratio", comment: "Aspect Ratio"))
+                .font(.system(size: 13, weight: .semibold))
+                .padding()
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 4) {
+                    sectionHeader("iPhone")
+                    ForEach(0..<5) { i in
+                        ratioRow(index: i)
+                    }
+                    
+                    sectionHeader("iPad")
+                    ForEach(5..<7) { i in
+                        ratioRow(index: i)
+                    }
+                    
+                    sectionHeader("Desktop")
+                    ForEach(7..<ratios.count) { i in
+                        ratioRow(index: i)
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+    
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+    }
+    
+    private func ratioRow(index: Int) -> some View {
+        let ratio = ratios[index]
+        let isSelected = selectedRatioIndex == index
+        
+        return Button(action: {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedRatioIndex = index
+                resetCrop()
+            }
+        }) {
+            HStack {
+                Text(ratio.name)
+                    .font(.system(size: 12))
+                Spacer()
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(isSelected ? Color.accentColor : Color.clear)
+            .foregroundColor(isSelected ? .white : .primary)
+            .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+    }
+    
+    private func loadImageSize() {
+        if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            imageSize = CGSize(width: CGFloat(cgImage.width), height: CGFloat(cgImage.height))
+        }
+    }
+    
+    private func calculateCropFrameSize(in canvasSize: CGSize) -> CGSize {
+        let targetRatio = selectedRatio.aspectRatio
+        let maxWidth = canvasSize.width * 0.85
+        let maxHeight = canvasSize.height * 0.85
+        
+        var width: CGFloat
+        var height: CGFloat
+        
+        if maxWidth / maxHeight > targetRatio {
+            height = maxHeight
+            width = height * targetRatio
+        } else {
+            width = maxWidth
+            height = width / targetRatio
+        }
+        
+        return CGSize(width: width, height: height)
+    }
+    
+    private func calculateImageDisplaySize(for cropSize: CGSize) -> CGSize {
+        guard imageSize.width > 0 && imageSize.height > 0 else {
+            return cropSize
+        }
+        
+        let imageRatio = imageSize.width / imageSize.height
+        let cropRatio = cropSize.width / cropSize.height
+        
+        var baseWidth: CGFloat
+        var baseHeight: CGFloat
+        
+        if imageRatio > cropRatio {
+            baseHeight = cropSize.height
+            baseWidth = baseHeight * imageRatio
+        } else {
+            baseWidth = cropSize.width
+            baseHeight = baseWidth / imageRatio
+        }
+        
+        return CGSize(width: baseWidth * zoomScale, height: baseHeight * zoomScale)
+    }
+    
+    private func clampOffset(imageSize: CGSize, cropSize: CGSize) -> CGSize {
+        let maxX = max(0, (imageSize.width - cropSize.width) / 2)
+        let maxY = max(0, (imageSize.height - cropSize.height) / 2)
+        
+        return CGSize(
+            width: min(maxX, max(-maxX, panOffset.width)),
+            height: min(maxY, max(-maxY, panOffset.height))
+        )
+    }
+    
+    private func resetCrop() {
+        panOffset = .zero
+        lastPanOffset = .zero
+        zoomScale = 1.0
+    }
+    
+    private func performCrop() {
+        guard imageSize.width > 0 && imageSize.height > 0 else { return }
+        
+        let targetRatio = selectedRatio.aspectRatio
+        let imageRatio = imageSize.width / imageSize.height
+        
+        var baseCropWidth: CGFloat
+        var baseCropHeight: CGFloat
+        
+        if imageRatio > targetRatio {
+            baseCropHeight = imageSize.height
+            baseCropWidth = baseCropHeight * targetRatio
+        } else {
+            baseCropWidth = imageSize.width
+            baseCropHeight = baseCropWidth / targetRatio
+        }
+        
+        let cropWidth = baseCropWidth / zoomScale
+        let cropHeight = baseCropHeight / zoomScale
+        
+        let imageDisplaySize = CGSize(
+            width: imageRatio > targetRatio ? imageSize.height * targetRatio * zoomScale : imageSize.width * zoomScale,
+            height: imageRatio > targetRatio ? imageSize.height * zoomScale : imageSize.width / targetRatio * zoomScale
+        )
+        
+        let normalizedOffsetX = -panOffset.width / imageDisplaySize.width
+        let normalizedOffsetY = -panOffset.height / imageDisplaySize.height
+        
+        let centerX = imageSize.width / 2
+        let centerY = imageSize.height / 2
+        
+        let cropCenterX = centerX + normalizedOffsetX * imageSize.width
+        let cropCenterY = centerY + normalizedOffsetY * imageSize.height
+        
+        var cropX = cropCenterX - cropWidth / 2
+        var cropY = cropCenterY - cropHeight / 2
+        
+        cropX = max(0, min(imageSize.width - cropWidth, cropX))
+        cropY = max(0, min(imageSize.height - cropHeight, cropY))
+        
+        let cropRect = CGRect(x: cropX, y: cropY, width: cropWidth, height: cropHeight)
+        
+        onCrop(cropRect, selectedRatio.size)
+    }
+}
+
+
+class ExportOptionsHandler: NSObject {
+    let wallpaper: endup_wp
+    let sourceURL: URL
+    let onExportOriginal: () -> Void
+    let onExportCustom: () -> Void
+    
+    init(wallpaper: endup_wp, sourceURL: URL, exportOriginal: @escaping () -> Void, exportCustom: @escaping () -> Void) {
+        self.wallpaper = wallpaper
+        self.sourceURL = sourceURL
+        self.onExportOriginal = exportOriginal
+        self.onExportCustom = exportCustom
+    }
+    
+    @objc func exportOriginal() {
+        onExportOriginal()
+    }
+    
+    @objc func exportCustom() {
+        onExportCustom()
     }
 }

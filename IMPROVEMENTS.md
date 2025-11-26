@@ -44,15 +44,6 @@ First and foremost, a huge thank you to [@naomisphere](https://github.com/naomis
   - WQHD (2560×1440)
   - 4K UHD (3840×2160)
   - All Resolutions (default)
-- **Smart Filtering:** Uses pixel count ranges to match similar resolutions
-- **Consistent UI:** Uses segmented control like other filters (Category, Purity)
-- **Apply on Demand:** Filter is applied when clicking "Apply Filters" button
-
-**How to Use:**
-1. Open the Browse tab
-2. Click the filter icon (slider icon)
-3. Select your desired resolution from the segmented control
-4. Click "Apply Filters" to see filtered results
 
 ### Enhanced Settings
 
@@ -61,7 +52,7 @@ First and foremost, a huge thank you to [@naomisphere](https://github.com/naomis
 - **Export Folder Selection:** Choose a default folder for exported wallpapers (defaults to Pictures folder)
 - **Better UI:** Improved layout, spacing, and visual hierarchy (kinda)
 
-### 🎯 Status Bar Menu Improvements
+### Status Bar Menu Improvements
 
 **What's Changed:**
 - **Custom Icon:** Now uses the beautiful tear drop logo (`tear.png`) from the artwork folder
@@ -71,7 +62,7 @@ First and foremost, a huge thank you to [@naomisphere](https://github.com/naomis
   - Cleaner, more intuitive structure
 - **Improved Labels:** Clearer descriptions for all menu items
 
-###  Dock Integration
+### Dock Integration
 
 **Feature:** The app now appears in the Dock when the Manager window is open.
 
@@ -98,7 +89,7 @@ First and foremost, a huge thank you to [@naomisphere](https://github.com/naomis
 ### Code Quality
 - **Error Handling:** Proper error handling and user feedback
 
-## 📝 Files Modified
+## Files Modified
 
 ### Core Application Files
 - `app/main/ManagerApp.swift` - Export functionality, crop editor

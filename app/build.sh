@@ -97,9 +97,9 @@ cat > "$CONTENTS_DIR/Info.plist" << EOF
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>$APP_NAME</string>
+    <string>macpaper</string>
     <key>CFBundleIdentifier</key>
-    <string>$BUNDLE_ID</string>
+    <string>com.naomisphere.macpaper</string>
     <key>CFBundleName</key>
     <string>macpaper</string>
     <key>CFBundleDisplayName</key>

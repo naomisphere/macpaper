@@ -15,7 +15,6 @@ struct SettingsView: View {
     @AppStorage("autoStartEnabled") private var autoStartEnabled = false
     @AppStorage("exportFolderPath") private var exportFolderPath = ""
     @State private var ap_is_enabled: Bool = false
-    @State private var showFolderPicker = false
     
     enum SettingsTab: CaseIterable, Identifiable, Hashable {
         case general, manager, playback
@@ -220,9 +219,7 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                     
                     HStack(spacing: 12) {
-                        Text(exportFolderPath.isEmpty ? 
-                             NSLocalizedString("settings_export_folder_default", comment: "Pictures folder") : 
-                             (exportFolderPath as NSString).lastPathComponent)
+                        Text(getDisplayFolderName())
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -230,9 +227,7 @@ struct SettingsView: View {
                         
                         Spacer()
                         
-                        Button(action: {
-                            showFolderPicker = true
-                        }) {
+                        Button(action: chooseFolder) {
                             Text(NSLocalizedString("settings_choose_folder", comment: "Choose Folder"))
                         }
                         
@@ -253,19 +248,46 @@ struct SettingsView: View {
                 )
             }
         }
-        .fileImporter(
-            isPresented: $showFolderPicker,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                if let url = urls.first {
-                    exportFolderPath = url.path
-                    saveExportFolder()
-                }
-            case .failure(let error):
-                print("folder selection error: \(error)")
+    }
+    
+    private func getDisplayFolderName() -> String {
+        if exportFolderPath.isEmpty {
+            if let picturesURL = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first {
+                return picturesURL.lastPathComponent
+            }
+            return NSLocalizedString("settings_export_folder_default", comment: "Pictures folder")
+        }
+        return (exportFolderPath as NSString).lastPathComponent
+    }
+    
+    private func chooseFolder() {
+        let previousPolicy = NSApp.activationPolicy()
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.title = NSLocalizedString("settings_choose_folder", comment: "Choose Folder")
+        panel.prompt = NSLocalizedString("settings_choose_folder", comment: "Choose Folder")
+        panel.message = NSLocalizedString("settings_export_folder_desc", comment: "Choose where exported wallpapers are saved")
+        
+        if !exportFolderPath.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: exportFolderPath)
+        } else if let picturesURL = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first {
+            panel.directoryURL = picturesURL
+        }
+        
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                self.exportFolderPath = url.path
+                self.saveExportFolder()
+            }
+            
+            if previousPolicy == .accessory && NSApp.windows.filter({ $0.isVisible }).isEmpty {
+                NSApp.setActivationPolicy(.accessory)
             }
         }
     }

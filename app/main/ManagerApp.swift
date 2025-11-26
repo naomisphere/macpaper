@@ -471,96 +471,21 @@ private func findButton(with title: String, in view: NSView) -> NSButton? {
     
     private func export_wp(_ wallpaper: endup_wp) {
         let sourceURL = URL(fileURLWithPath: wallpaper.path)
-        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
-            print("export error: source file does not exist")
-            return
-        }
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else { return }
         
         let fileExtension = sourceURL.pathExtension.lowercased()
         let isImage = ["jpg", "jpeg", "png", "gif"].contains(fileExtension)
         
         if isImage {
-            showExportOptions(for: wallpaper, sourceURL: sourceURL)
-        } else {
-            exportDirectly(sourceURL: sourceURL, wallpaper: wallpaper)
-        }
-    }
-    
-    private func showExportOptions(for wallpaper: endup_wp, sourceURL: URL) {
-        let menu = NSMenu()
-        
-        menu.addItem(NSMenuItem(title: NSLocalizedString("export_original", comment: "Original Size"), action: #selector(ExportOptionsHandler.exportOriginal), keyEquivalent: ""))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: NSLocalizedString("download_custom_ratio", comment: "Custom Aspect Ratio"), action: #selector(ExportOptionsHandler.exportCustom), keyEquivalent: ""))
-        
-        let handler = ExportOptionsHandler(
-            wallpaper: wallpaper,
+            ExportManager.shared.showExportMenu(
+                for: wallpaper,
             sourceURL: sourceURL,
-            exportOriginal: {
-                self.exportDirectly(sourceURL: sourceURL, wallpaper: wallpaper)
-            },
-            exportCustom: {
-                guard let sourceImage = NSImage(contentsOfFile: sourceURL.path) else {
-                    print("export error: could not load image")
-                    return
+                showCropEditor: { image, wp, url in
+                    self.showCropEditorWindow(image: image, wallpaper: wp, sourceURL: url)
                 }
-                self.showCropEditorWindow(image: sourceImage, wallpaper: wallpaper, sourceURL: sourceURL)
-            }
-        )
-        
-        menu.items.forEach { $0.target = handler }
-        
-        if NSApp.keyWindow != nil {
-            menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
-        }
-    }
-    
-    
-    func exportDirectly(sourceURL: URL, wallpaper: endup_wp) {
-        let fileExtension = sourceURL.pathExtension.lowercased()
-        var allowedTypes: [UTType] = []
-        
-        switch fileExtension {
-        case "jpg", "jpeg":
-            allowedTypes = [.jpeg]
-        case "png":
-            allowedTypes = [.png]
-        case "gif":
-            allowedTypes = [.gif]
-        case "mp4":
-            allowedTypes = [.mpeg4Movie]
-        case "mov":
-            allowedTypes = [.quickTimeMovie]
-        default:
-            allowedTypes = [.jpeg, .png, .gif, .mpeg4Movie, .quickTimeMovie]
-        }
-        
-        let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = allowedTypes
-        savePanel.nameFieldStringValue = wallpaper.name
-        savePanel.title = NSLocalizedString("export_wallpaper", comment: "Export Wallpaper")
-        savePanel.directoryURL = service.getExportFolder()
-        
-        savePanel.begin { response in
-            if response == .OK, let destinationURL = savePanel.url {
-                do {
-                    if FileManager.default.fileExists(atPath: destinationURL.path) {
-                        try FileManager.default.removeItem(at: destinationURL)
-                    }
-                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
-                    print("exported wallpaper to: \(destinationURL.path)")
-                } catch {
-                    print("while exporting file: \(error)")
-                    DispatchQueue.main.async {
-                        let alert = NSAlert()
-                        alert.messageText = NSLocalizedString("export_error", comment: "Export Error")
-                        alert.informativeText = error.localizedDescription
-                        alert.alertStyle = .warning
-                        alert.addButton(withTitle: NSLocalizedString("browse_cancel", comment: "OK"))
-                        alert.runModal()
-                    }
-                }
-            }
+            )
+        } else {
+            ExportManager.shared.exportOriginal(wallpaper: wallpaper, sourceURL: sourceURL)
         }
     }
     
@@ -577,7 +502,12 @@ private func findButton(with title: String, in view: NSView) -> NSButton? {
             wallpaperName: wallpaper.name,
             onCrop: { [weak window] cropRect, targetSize in
                 window?.close()
-                self.exportWithCrop(wallpaper: wallpaper, sourceURL: sourceURL, cropRect: cropRect, targetSize: targetSize)
+                ExportManager.shared.exportWithCrop(
+                    wallpaper: wallpaper,
+                    sourceURL: sourceURL,
+                    cropRect: cropRect,
+                    targetSize: targetSize
+                )
             },
             onCancel: { [weak window] in
                 window?.close()
@@ -591,162 +521,6 @@ private func findButton(with title: String, in view: NSView) -> NSButton? {
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-    }
-    
-    private func exportWithCrop(wallpaper: endup_wp, sourceURL: URL, cropRect: CGRect, targetSize: NSSize) {
-        guard let sourceImage = NSImage(contentsOfFile: sourceURL.path) else {
-            print("export error: could not load image")
-            return
-        }
-        
-        let croppedImage = cropImage(sourceImage, cropRect: cropRect, targetSize: targetSize)
-        
-        let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = [.png, .jpeg]
-        savePanel.nameFieldStringValue = "\(wallpaper.name)_\(Int(targetSize.width))x\(Int(targetSize.height))"
-        savePanel.title = NSLocalizedString("export_wallpaper", comment: "Export Wallpaper")
-        savePanel.directoryURL = service.getExportFolder()
-        
-        let response = savePanel.runModal()
-        
-        guard response == .OK, let destinationURL = savePanel.url else {
-            return
-        }
-        
-        saveCroppedImage(croppedImage, to: destinationURL)
-    }
-    
-    private func cropImage(_ image: NSImage, cropRect: CGRect, targetSize: NSSize) -> NSImage {
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return image
-        }
-        
-        guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
-            return image
-        }
-        
-        guard let context = CGContext(
-            data: nil,
-            width: Int(targetSize.width),
-            height: Int(targetSize.height),
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else {
-            return image
-        }
-        
-        context.interpolationQuality = .high
-        context.draw(croppedCGImage, in: CGRect(origin: .zero, size: targetSize))
-        
-        guard let finalCGImage = context.makeImage() else {
-            return image
-        }
-        
-        return NSImage(cgImage: finalCGImage, size: targetSize)
-    }
-    
-    private func saveCroppedImage(_ image: NSImage, to destinationURL: URL) {
-        guard let tiffData = image.tiffRepresentation,
-              let bitmapImage = NSBitmapImageRep(data: tiffData) else {
-            showExportError("could not convert image")
-            return
-        }
-        
-        let fileExtension = destinationURL.pathExtension.lowercased()
-        let imageData: Data?
-        
-        if fileExtension == "png" {
-            imageData = bitmapImage.representation(using: .png, properties: [:])
-        } else {
-            imageData = bitmapImage.representation(using: .jpeg, properties: [.compressionFactor: 0.95])
-        }
-        
-        guard let data = imageData else {
-            showExportError("could not create image data")
-            return
-        }
-        
-        do {
-            try data.write(to: destinationURL)
-            print("exported wallpaper to: \(destinationURL.path)")
-        } catch {
-            showExportError(error.localizedDescription)
-        }
-    }
-    
-    private func showExportError(_ message: String) {
-        let alert = NSAlert()
-        alert.messageText = NSLocalizedString("export_error", comment: "Export Error")
-        alert.informativeText = message
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
-    }
-    
-    private func resizeImageToFit(_ image: NSImage, targetSize: NSSize, cropRect: CGRect? = nil) -> NSImage {
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return image
-        }
-        
-        let imageWidth = CGFloat(cgImage.width)
-        let imageHeight = CGFloat(cgImage.height)
-        let targetWidth = targetSize.width
-        let targetHeight = targetSize.height
-        
-        let finalCropRect: CGRect
-        
-        if let cropRect = cropRect {
-            finalCropRect = cropRect
-        } else {
-            let imageRatio = imageWidth / imageHeight
-            let targetRatio = targetWidth / targetHeight
-            
-            if imageRatio > targetRatio {
-                let cropHeight = imageWidth / targetRatio
-                finalCropRect = CGRect(
-                    x: 0,
-                    y: (imageHeight - cropHeight) / 2,
-                    width: imageWidth,
-                    height: cropHeight
-                )
-            } else {
-                let cropWidth = imageHeight * targetRatio
-                finalCropRect = CGRect(
-                    x: (imageWidth - cropWidth) / 2,
-                    y: 0,
-                    width: cropWidth,
-                    height: imageHeight
-                )
-            }
-        }
-        
-        guard let croppedCGImage = cgImage.cropping(to: finalCropRect) else {
-            return image
-        }
-        
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let context = CGContext(
-            data: nil,
-            width: Int(targetWidth),
-            height: Int(targetHeight),
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else {
-            return image
-        }
-        
-        context.interpolationQuality = .high
-        context.draw(croppedCGImage, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
-        
-        guard let finalCGImage = context.makeImage() else {
-            return image
-        }
-        
-        return NSImage(cgImage: finalCGImage, size: targetSize)
     }
     
     private func isStillWallpaper(_ path: String) -> Bool {
@@ -1487,68 +1261,6 @@ class ImageCache {
     }
 }
 
-class ExportHandler: NSObject {
-    let wallpaper: endup_wp
-    let sourceURL: URL
-    let exportDirectly: (URL, endup_wp) -> Void
-    let exportWithRatio: (endup_wp, URL, NSSize) -> Void
-    
-    init(wallpaper: endup_wp, sourceURL: URL, exportDirectly: @escaping (URL, endup_wp) -> Void, exportWithRatio: @escaping (endup_wp, URL, NSSize) -> Void) {
-        self.wallpaper = wallpaper
-        self.sourceURL = sourceURL
-        self.exportDirectly = exportDirectly
-        self.exportWithRatio = exportWithRatio
-    }
-    
-    @objc func exportOriginal() {
-        exportDirectly(sourceURL, wallpaper)
-    }
-    
-    @objc func exportiPhone15ProMax() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1290, height: 2796))
-    }
-    
-    @objc func exportiPhone15Pro() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1179, height: 2556))
-    }
-    
-    @objc func exportiPhone14Pro() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1179, height: 2556))
-    }
-    
-    @objc func exportiPhone13Pro() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1170, height: 2532))
-    }
-    
-    @objc func exportiPhoneSE() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 750, height: 1334))
-    }
-    
-    @objc func exportiPadPro12() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 2732, height: 2048))
-    }
-    
-    @objc func exportiPadPro11() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 2388, height: 1668))
-    }
-    
-    @objc func export4K() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 3840, height: 2160))
-    }
-    
-    @objc func export1440p() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 2560, height: 1440))
-    }
-    
-    @objc func export1080p() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 1920, height: 1080))
-    }
-    
-    @objc func exportUltrawide() {
-        exportWithRatio(wallpaper, sourceURL, NSSize(width: 3440, height: 1440))
-    }
-}
-
 struct CropEditorView: View {
     let image: NSImage
     let wallpaperName: String
@@ -1910,24 +1622,201 @@ struct CropEditorView: View {
 }
 
 
-class ExportOptionsHandler: NSObject {
-    let wallpaper: endup_wp
-    let sourceURL: URL
-    let onExportOriginal: () -> Void
-    let onExportCustom: () -> Void
+class ExportManager: NSObject {
+    static let shared = ExportManager()
     
-    init(wallpaper: endup_wp, sourceURL: URL, exportOriginal: @escaping () -> Void, exportCustom: @escaping () -> Void) {
-        self.wallpaper = wallpaper
-        self.sourceURL = sourceURL
-        self.onExportOriginal = exportOriginal
-        self.onExportCustom = exportCustom
+    private var currentWallpaper: endup_wp?
+    private var currentSourceURL: URL?
+    private var onShowCropEditor: ((NSImage, endup_wp, URL) -> Void)?
+    
+    private let exportFolderFile = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".local/share/macpaper/export_folder")
+    
+    private override init() {
+        super.init()
     }
     
-    @objc func exportOriginal() {
-        onExportOriginal()
+    private func getExportFolder() -> URL {
+        if FileManager.default.fileExists(atPath: exportFolderFile.path) {
+            do {
+                let path = try String(contentsOf: exportFolderFile).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !path.isEmpty && FileManager.default.fileExists(atPath: path) {
+                    return URL(fileURLWithPath: path)
+                }
+            } catch {}
+        }
+        
+        if let picturesURL = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first {
+            return picturesURL
+        }
+        
+        return FileManager.default.homeDirectoryForCurrentUser
     }
     
-    @objc func exportCustom() {
-        onExportCustom()
+    func showExportMenu(
+        for wallpaper: endup_wp,
+        sourceURL: URL,
+        showCropEditor: @escaping (NSImage, endup_wp, URL) -> Void
+    ) {
+        self.currentWallpaper = wallpaper
+        self.currentSourceURL = sourceURL
+        self.onShowCropEditor = showCropEditor
+        
+        let menu = NSMenu()
+        
+        let originalItem = NSMenuItem(
+            title: NSLocalizedString("export_original", comment: "Original Size"),
+            action: #selector(handleExportOriginal),
+            keyEquivalent: ""
+        )
+        originalItem.target = self
+        menu.addItem(originalItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        let customItem = NSMenuItem(
+            title: NSLocalizedString("download_custom_ratio", comment: "Custom Aspect Ratio"),
+            action: #selector(handleExportCustom),
+            keyEquivalent: ""
+        )
+        customItem.target = self
+        menu.addItem(customItem)
+        
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+    
+    @objc private func handleExportOriginal() {
+        guard let wallpaper = currentWallpaper, let sourceURL = currentSourceURL else { return }
+        exportOriginal(wallpaper: wallpaper, sourceURL: sourceURL)
+    }
+    
+    @objc private func handleExportCustom() {
+        guard let wallpaper = currentWallpaper,
+              let sourceURL = currentSourceURL,
+              let showCropEditor = onShowCropEditor,
+              let image = NSImage(contentsOfFile: sourceURL.path) else { return }
+        showCropEditor(image, wallpaper, sourceURL)
+    }
+    
+    func exportOriginal(wallpaper: endup_wp, sourceURL: URL) {
+        let fileExtension = sourceURL.pathExtension.lowercased()
+        var allowedTypes: [UTType] = []
+        
+        switch fileExtension {
+        case "jpg", "jpeg": allowedTypes = [.jpeg]
+        case "png": allowedTypes = [.png]
+        case "gif": allowedTypes = [.gif]
+        case "mp4": allowedTypes = [.mpeg4Movie]
+        case "mov": allowedTypes = [.quickTimeMovie]
+        default: allowedTypes = [.jpeg, .png, .gif, .mpeg4Movie, .quickTimeMovie]
+        }
+        
+        let previousPolicy = NSApp.activationPolicy()
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = allowedTypes
+        savePanel.nameFieldStringValue = wallpaper.name
+        savePanel.title = NSLocalizedString("export_wallpaper", comment: "Export Wallpaper")
+        savePanel.directoryURL = getExportFolder()
+        
+        savePanel.begin { response in
+            if response == .OK, let destinationURL = savePanel.url {
+                do {
+                    if FileManager.default.fileExists(atPath: destinationURL.path) {
+                        try FileManager.default.removeItem(at: destinationURL)
+                    }
+                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                } catch {
+                    self.showError(error.localizedDescription)
+                }
+            }
+            
+            if previousPolicy == .accessory && NSApp.windows.filter({ $0.isVisible }).isEmpty {
+                NSApp.setActivationPolicy(.accessory)
+            }
+        }
+    }
+    
+    func exportWithCrop(wallpaper: endup_wp, sourceURL: URL, cropRect: CGRect, targetSize: NSSize) {
+        guard let sourceImage = NSImage(contentsOfFile: sourceURL.path) else { return }
+        
+        let croppedImage = cropImage(sourceImage, cropRect: cropRect, targetSize: targetSize)
+        
+        let previousPolicy = NSApp.activationPolicy()
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.png, .jpeg]
+        savePanel.nameFieldStringValue = "\(wallpaper.name)_\(Int(targetSize.width))x\(Int(targetSize.height))"
+        savePanel.title = NSLocalizedString("export_wallpaper", comment: "Export Wallpaper")
+        savePanel.directoryURL = getExportFolder()
+        
+        savePanel.begin { response in
+            if response == .OK, let destinationURL = savePanel.url {
+                self.saveCroppedImage(croppedImage, to: destinationURL)
+            }
+            
+            if previousPolicy == .accessory && NSApp.windows.filter({ $0.isVisible }).isEmpty {
+                NSApp.setActivationPolicy(.accessory)
+            }
+        }
+    }
+    
+    private func cropImage(_ image: NSImage, cropRect: CGRect, targetSize: NSSize) -> NSImage {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let croppedCGImage = cgImage.cropping(to: cropRect),
+              let context = CGContext(
+                  data: nil,
+                  width: Int(targetSize.width),
+                  height: Int(targetSize.height),
+                  bitsPerComponent: 8,
+                  bytesPerRow: 0,
+                  space: CGColorSpaceCreateDeviceRGB(),
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else {
+            return image
+        }
+        
+        context.interpolationQuality = .high
+        context.draw(croppedCGImage, in: CGRect(origin: .zero, size: targetSize))
+        
+        guard let finalCGImage = context.makeImage() else { return image }
+        return NSImage(cgImage: finalCGImage, size: targetSize)
+    }
+    
+    private func saveCroppedImage(_ image: NSImage, to destinationURL: URL) {
+        guard let tiffData = image.tiffRepresentation,
+              let bitmapImage = NSBitmapImageRep(data: tiffData) else {
+            showError("Could not convert image")
+            return
+        }
+        
+        let fileExtension = destinationURL.pathExtension.lowercased()
+        let imageData = fileExtension == "png"
+            ? bitmapImage.representation(using: .png, properties: [:])
+            : bitmapImage.representation(using: .jpeg, properties: [.compressionFactor: 0.95])
+        
+        guard let data = imageData else {
+            showError("Could not create image data")
+            return
+        }
+        
+        do {
+            try data.write(to: destinationURL)
+        } catch {
+            showError(error.localizedDescription)
+        }
+    }
+    
+    private func showError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString("export_error", comment: "Export Error")
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }

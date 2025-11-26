@@ -402,6 +402,8 @@ struct glassObj: View {
         window.titleVisibility = .hidden
         window.contentView = NSHostingView(rootView: settingsView)
         window.isReleasedWhenClosed = false
+        
+        NSApp.setActivationPolicy(.regular)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

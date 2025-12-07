@@ -16,11 +16,50 @@ struct BrowseView: View {
     @State private var chosen_purity: WHPurityStatus = .sfw
     @State private var chosen_categ: WHCategory = .all
     @State private var chosen_prov: Set<WallpaperProvider> = [.wallhaven]
+    @State private var selectedResolution: ResolutionFilter = .all
+    @State private var activeResolutionFilter: ResolutionFilter = .all
     @State private var currentPage = 1
     @State private var showFilters = false
     @State private var isLoading = false
     @State private var showAPIKeyAlert = false
     @State private var apiKey = ""
+    
+    enum ResolutionFilter: String, CaseIterable {
+        case hd = "HD"
+        case fullHd = "Full HD"
+        case wqhd = "WQHD"
+        case uhd4k = "4K UHD"
+        case all = "All"
+        
+        var displayName: String {
+            switch self {
+            case .hd: return "HD"
+            case .fullHd: return "Full HD"
+            case .wqhd: return "WQHD"
+            case .uhd4k: return "4K"
+            case .all: return NSLocalizedString("filter_resolution_all", comment: "All")
+            }
+        }
+        
+        func matches(width: Int, height: Int) -> Bool {
+            switch self {
+            case .all:
+                return true
+            case .hd:
+                let totalPixels = width * height
+                return totalPixels >= 800_000 && totalPixels < 1_500_000
+            case .fullHd:
+                let totalPixels = width * height
+                return totalPixels >= 1_500_000 && totalPixels < 3_000_000
+            case .wqhd:
+                let totalPixels = width * height
+                return totalPixels >= 3_000_000 && totalPixels < 5_000_000
+            case .uhd4k:
+                let totalPixels = width * height
+                return totalPixels >= 5_000_000
+            }
+        }
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -31,7 +70,7 @@ struct BrowseView: View {
             
             if isLoading {
                 loadingView
-            } else if WHServ.wallpapers.isEmpty {
+            } else if filteredWallpapers.isEmpty {
                 emptyStateView
             } else {
                 contentView
@@ -152,6 +191,19 @@ struct BrowseView: View {
             }
             
             VStack(alignment: .leading, spacing: 12) {
+                Text(NSLocalizedString("browse_resolution", comment: "Resolution"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                Picker("", selection: $selectedResolution) {
+                    ForEach(ResolutionFilter.allCases, id: \.self) { resolution in
+                        Text(resolution.displayName).tag(resolution)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+            }
+            
+            VStack(alignment: .leading, spacing: 12) {
                 Text(NSLocalizedString("browse_sort", comment: "Sort by"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
@@ -171,6 +223,7 @@ struct BrowseView: View {
             }
             
             Button(action: {
+                activeResolutionFilter = selectedResolution
                 currentPage = 1
                 loadWallpapers()
                 showFilters = false
@@ -208,16 +261,22 @@ struct BrowseView: View {
     private var contentView: some View {
         ScrollView {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: 3), spacing: 20) {
-                ForEach(WHServ.wallpapers) { wallpaper in
+                ForEach(filteredWallpapers) { wallpaper in
                     WHWallpaperCard(wallpaper: wallpaper)
                         .onAppear {
-                            if wallpaper.id == WHServ.wallpapers.last?.id {
+                            if wallpaper.id == filteredWallpapers.last?.id {
                                 loadNextPage()
                             }
                         }
                 }
             }
             .padding(24)
+        }
+    }
+    
+    private var filteredWallpapers: [WHWallpaper] {
+        return WHServ.wallpapers.filter { wallpaper in
+            activeResolutionFilter.matches(width: wallpaper.dimension_x, height: wallpaper.dimension_y)
         }
     }
     
@@ -292,6 +351,7 @@ struct WHWallpaperCard: View {
     @State private var downloadProgress: Double = 0
     @State private var isDownloading = false
     @State private var downloadTask: URLSessionDownloadTask?
+    @State private var imageTask: URLSessionDataTask?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -360,6 +420,7 @@ struct WHWallpaperCard: View {
         }
         .onDisappear {
             downloadTask?.cancel()
+            imageTask?.cancel()
         }
     }
     
@@ -378,19 +439,45 @@ struct WHWallpaperCard: View {
     }
     
     private func loadImage() {
-        guard let url = URL(string: wallpaper.thumbs.large) else { return }
+        guard let url = URL(string: wallpaper.thumbs.large) else {
+            isLoading = false
+            return
+        }
         
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            if let data = data, let nsImage = NSImage(data: data) {
+        let cacheKey = url.absoluteString as NSString
+        if let cachedImage = ThumbnailCache.shared.getImage(forKey: cacheKey as String) {
+            self.image = cachedImage
+            self.isLoading = false
+            return
+        }
+        
+        imageTask = URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("image load error: \(error)")
                 DispatchQueue.main.async {
-                    self.image = nsImage
                     self.isLoading = false
                 }
+                return
             }
-        }.resume()
+            
+            guard let data = data, let nsImage = NSImage(data: data) else {
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                }
+                return
+            }
+            
+            ThumbnailCache.shared.setImage(nsImage, forKey: cacheKey as String)
+            
+            DispatchQueue.main.async {
+                self.image = nsImage
+                self.isLoading = false
+            }
+        }
+        imageTask?.resume()
     }
     
-    private func downloadWallpaper() {
+    private func downloadWallpaper(retryCount: Int = 0) {
         isDownloading = true
         downloadProgress = 0
         
@@ -409,7 +496,6 @@ struct WHWallpaperCard: View {
             let destinationURL = wpStorageDir.appendingPathComponent(fileName)
             
             if FileManager.default.fileExists(atPath: destinationURL.path) {
-                // if already downloaded go out (with style)
                 withAnimation {
                     downloadProgress = 1.0
                 }
@@ -423,21 +509,34 @@ struct WHWallpaperCard: View {
                 defer {
                     DispatchQueue.main.async {
                         self.isDownloading = false
+                        self.downloadProgress = 0
                     }
                 }
                 
                 if let error = error {
                     print("download error: \(error)")
+                    if retryCount < 2 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            self.downloadWallpaper(retryCount: retryCount + 1)
+                        }
+                    }
                     return
                 }
                 
-                guard let tempURL = tempURL else { return }
+                guard let tempURL = tempURL else {
+                    print("download error: no temporary file")
+                    if retryCount < 2 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            self.downloadWallpaper(retryCount: retryCount + 1)
+                        }
+                    }
+                    return
+                }
                 
                 do {
                     try FileManager.default.moveItem(at: tempURL, to: destinationURL)
                     print("downloaded wallpaper to: \(destinationURL.path)")
                     
-                    // notify a new wallpaper was added
                     DispatchQueue.main.async {
                         NotificationCenter.default.post(
                             name: NSNotification.Name("WallpaperDownloadCompleted"),
@@ -449,7 +548,7 @@ struct WHWallpaperCard: View {
                 }
             }
             
-            let observation = downloadTask?.progress.observe(\.fractionCompleted) { progress, _ in
+            _ = downloadTask?.progress.observe(\.fractionCompleted) { progress, _ in
                 DispatchQueue.main.async {
                     self.downloadProgress = progress.fractionCompleted
                 }
@@ -460,6 +559,7 @@ struct WHWallpaperCard: View {
         } catch {
             print("while creating directory: \(error)")
             isDownloading = false
+            downloadProgress = 0
         }
     }
 }
@@ -681,5 +781,24 @@ enum WHCategory: String, CaseIterable {
         case .people: return NSLocalizedString("category_people", comment: "People")
         case .all: return NSLocalizedString("category_all", comment: "All")
         }
+    }
+}
+
+class ThumbnailCache {
+    static let shared = ThumbnailCache()
+    private var cache = NSCache<NSString, NSImage>()
+    
+    private init() {
+        cache.countLimit = 100
+        cache.totalCostLimit = 100 * 1024 * 1024
+    }
+    
+    func getImage(forKey key: String) -> NSImage? {
+        return cache.object(forKey: key as NSString)
+    }
+    
+    func setImage(_ image: NSImage, forKey key: String) {
+        let cost = Int(image.size.width * image.size.height * 4)
+        cache.setObject(image, forKey: key as NSString, cost: cost)
     }
 }

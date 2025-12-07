@@ -12,6 +12,8 @@ struct SettingsView: View {
     @State private var apiKeyError: String?
     
     @AppStorage("checkForUpdates") private var checkForUpdates = true
+    @AppStorage("autoStartEnabled") private var autoStartEnabled = false
+    @AppStorage("exportFolderPath") private var exportFolderPath = ""
     @State private var ap_is_enabled: Bool = false
     
     enum SettingsTab: CaseIterable, Identifiable, Hashable {
@@ -38,84 +40,89 @@ struct SettingsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 12) {
-                HStack {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.primary.opacity(0.8))
-                    
-                    Text(NSLocalizedString("settings", comment: "Settings"))
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    
-                    Spacer()
-                }
-
-                HStack(spacing: 0) {
-                    ForEach(SettingsTab.allCases, id: \.self) { tab in
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedTab = tab
-                            }
-                        }) {
-                            VStack(spacing: 6) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: tab.icon)
-                                        .font(.system(size: 12, weight: .medium))
-                                    Text(tab.title)
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                                .foregroundStyle(selectedTab == tab ? .primary : .secondary)
-                                
-                                Rectangle()
-                                    .fill(selectedTab == tab ? .primary : Color.clear)
-                                    .frame(height: 2)
-                                    .cornerRadius(1)
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .focusable(false)
-                        
-                        if tab != SettingsTab.allCases.last {
-                            Spacer()
-                        }
-                    }
-                }
+            HStack(spacing: 16) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(.blue)
+                
+                Text(NSLocalizedString("settings", comment: "Settings"))
+                    .font(.system(size: 22, weight: .bold))
+                
+                Spacer()
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
+            .padding(.horizontal, 28)
+            .padding(.top, 24)
+            .padding(.bottom, 20)
+            
+            HStack(spacing: 12) {
+                ForEach(SettingsTab.allCases, id: \.self) { tab in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedTab = tab
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 13, weight: .medium))
+                            Text(tab.title)
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(selectedTab == tab ? Color.blue : Color.clear)
+                        )
+                        .foregroundStyle(selectedTab == tab ? .white : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 28)
             .padding(.bottom, 16)
             
             Divider()
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
 
-            ScrollView {
-                VStack(spacing: 20) {
-                    Group {
-                        switch selectedTab {
-                        case .general:
-                            generalSettings
-                        case .manager:
-                            managerSettings
-                        case .playback:
-                            playbackSettings
-                        }
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 24) {
+                    switch selectedTab {
+                    case .general:
+                        generalSettings
+                    case .manager:
+                        managerSettings
+                    case .playback:
+                        playbackSettings
                     }
-                    .padding(.horizontal, 24)
                 }
-                .padding(.vertical, 20)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 24)
             }
         }
-        .frame(minWidth: 500, minHeight: 400)
+        .frame(minWidth: 550, idealWidth: 600, minHeight: 500, idealHeight: 550)
+        .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             loadAPIKey()
             ap_is_enabled = service.ap_is_enabled
+            loadExportFolder()
+            checkAutoStartStatus()
         }
     }
     
     private var generalSettings: some View {
-        /* general settings start */
         VStack(alignment: .leading, spacing: 20) {
+            Section(title: NSLocalizedString("settings_startup", comment: "Startup")) {
+                SToggle(
+                    title: NSLocalizedString("settings_auto_start", comment: "Start at Login"),
+                    description: NSLocalizedString("settings_auto_start_desc", comment: "Automatically start macpaper when you log in"),
+                    isOn: $autoStartEnabled
+                )
+                .onChange(of: autoStartEnabled) { newValue in
+                    toggleAutoStart(newValue)
+                }
+            }
+            
             Section(title: NSLocalizedString("settings_updates", comment: "Updates")) {
                 SToggle(
                     title: NSLocalizedString("settings_check_updates", comment: "Check for Updates"),
@@ -200,14 +207,88 @@ struct SettingsView: View {
         }
     }
     
-    /* manager settings start */
     private var managerSettings: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Nothing to see here.. for now")
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 40)
+            Section(title: NSLocalizedString("settings_export", comment: "Export")) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(NSLocalizedString("settings_export_folder", comment: "Export Folder"))
+                        .font(.system(size: 14, weight: .medium))
+                    
+                    Text(NSLocalizedString("settings_export_folder_desc", comment: "Choose where exported wallpapers are saved"))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                    
+                    HStack(spacing: 12) {
+                        Text(getDisplayFolderName())
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        
+                        Spacer()
+                        
+                        Button(action: chooseFolder) {
+                            Text(NSLocalizedString("settings_choose_folder", comment: "Choose Folder"))
+                        }
+                        
+                        if !exportFolderPath.isEmpty {
+                            Button(action: {
+                                exportFolderPath = ""
+                                saveExportFolder()
+                            }) {
+                                Text(NSLocalizedString("settings_reset_folder", comment: "Reset"))
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.05))
+                )
+            }
+        }
+    }
+    
+    private func getDisplayFolderName() -> String {
+        if exportFolderPath.isEmpty {
+            if let picturesURL = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first {
+                return picturesURL.lastPathComponent
+            }
+            return NSLocalizedString("settings_export_folder_default", comment: "Pictures folder")
+        }
+        return (exportFolderPath as NSString).lastPathComponent
+    }
+    
+    private func chooseFolder() {
+        let previousPolicy = NSApp.activationPolicy()
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.title = NSLocalizedString("settings_choose_folder", comment: "Choose Folder")
+        panel.prompt = NSLocalizedString("settings_choose_folder", comment: "Choose Folder")
+        panel.message = NSLocalizedString("settings_export_folder_desc", comment: "Choose where exported wallpapers are saved")
+        
+        if !exportFolderPath.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: exportFolderPath)
+        } else if let picturesURL = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first {
+            panel.directoryURL = picturesURL
+        }
+        
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                self.exportFolderPath = url.path
+                self.saveExportFolder()
+            }
+            
+            if previousPolicy == .accessory && NSApp.windows.filter({ $0.isVisible }).isEmpty {
+                NSApp.setActivationPolicy(.accessory)
+            }
         }
     }
     
@@ -314,6 +395,106 @@ struct SettingsView: View {
         }
         
         isSaving = false
+    }
+    
+    private func toggleAutoStart(_ enabled: Bool) {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let launchAgent = home.appendingPathComponent("Library/LaunchAgents/com.naomisphere.macpaper.app.plist")
+        let appPath = Bundle.main.bundlePath
+        
+        if enabled {
+            let plistContent = """
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.naomisphere.macpaper.app</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>\(appPath)/Contents/MacOS/macpaper</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>
+"""
+            
+            do {
+                try FileManager.default.createDirectory(at: launchAgent.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try plistContent.write(to: launchAgent, atomically: true, encoding: .utf8)
+                
+                let loadTask = Process()
+                loadTask.launchPath = "/bin/launchctl"
+                loadTask.arguments = ["load", launchAgent.path]
+                loadTask.launch()
+                loadTask.waitUntilExit()
+            } catch {
+                print("while enabling auto start: \(error)")
+                autoStartEnabled = false
+            }
+        } else {
+            do {
+                let unloadTask = Process()
+                unloadTask.launchPath = "/bin/launchctl"
+                unloadTask.arguments = ["unload", launchAgent.path]
+                unloadTask.launch()
+                unloadTask.waitUntilExit()
+                
+                if FileManager.default.fileExists(atPath: launchAgent.path) {
+                    try FileManager.default.removeItem(at: launchAgent)
+                }
+            } catch {
+                print("while disabling auto start: \(error)")
+            }
+        }
+    }
+    
+    private func checkAutoStartStatus() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let launchAgent = home.appendingPathComponent("Library/LaunchAgents/com.naomisphere.macpaper.app.plist")
+        autoStartEnabled = FileManager.default.fileExists(atPath: launchAgent.path)
+    }
+    
+    private func loadExportFolder() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let settingsFile = home.appendingPathComponent(".local/share/macpaper/export_folder")
+        
+        if FileManager.default.fileExists(atPath: settingsFile.path) {
+            do {
+                exportFolderPath = try String(contentsOf: settingsFile).trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                print("while reading export folder: \(error)")
+            }
+        }
+        
+        if exportFolderPath.isEmpty {
+            let picturesURL = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
+            if let picturesPath = picturesURL?.path {
+                exportFolderPath = picturesPath
+            }
+        }
+    }
+    
+    private func saveExportFolder() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let settingsFile = home.appendingPathComponent(".local/share/macpaper/export_folder")
+        
+        do {
+            try FileManager.default.createDirectory(at: settingsFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+            
+            if exportFolderPath.isEmpty {
+                if FileManager.default.fileExists(atPath: settingsFile.path) {
+                    try FileManager.default.removeItem(at: settingsFile)
+                }
+            } else {
+                try exportFolderPath.write(to: settingsFile, atomically: true, encoding: .utf8)
+            }
+        } catch {
+            print("while saving export folder: \(error)")
+        }
     }
 }
 

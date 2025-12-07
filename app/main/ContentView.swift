@@ -63,7 +63,7 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    HStack(spacing: 8) {
+                    HStack(spacing: 16) {
                         Button(action: {
                             if let url = URL(string: "https://ko-fi.com/naomisphere") {
                                 NSWorkspace.shared.open(url)
@@ -107,7 +107,6 @@ struct ContentView: View {
                     bg()
                 )
                 .padding(.horizontal, 16)
-                .padding(.top, 16)
                 
                 ZStack {
                     Group {

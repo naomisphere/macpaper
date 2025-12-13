@@ -19,10 +19,7 @@
 </p>
 
 <p align="center">
-macpaper is a feature-packed lightweight Wallpaper Manager for macOS, with support for gifs, videos, and online wallpaper browsing, among other many things!
-<br><br>
-At the start, macpaper was no more than a simple tool with boring... features... Zzz...
-But now, it's evolved to an advanced tool for customization of your wallpaper, all while keeping sure it doesn't eat your RAM.
+macpaper is a feature-packed lightweight Wallpaper Manager for macOS, with support for gifs, videos, online wallpaper browsing, multi-monitor wallpapers, exporting, among other many things!
 </p>
 
 <h1 align="center">
